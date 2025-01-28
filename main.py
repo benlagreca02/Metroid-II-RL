@@ -22,8 +22,8 @@ def main():
         # observation, reward, terminated, truncated, info = env.step(0)
 
         observation, reward, terminated, truncated, info = env.step(action)
-        toPrint = f"Reward: {reward}"
-        print(toPrint)
+        # toPrint = f"Reward: {reward}"
+        # print(toPrint)
 
         # observation, reward, terminated, truncated, info = env.step(0)
 

@@ -71,6 +71,9 @@ class MetroidEnv(gym.Env):
 
         self.game_state_old = self._get_current_mem_state_dict()
 
+        # we have obviously explored the current area, we're there right now!
+        self.explored = [self.pyboy.game_area()]
+
     
     def _get_current_mem_state_dict(self):
         # GMC is global metroid count
@@ -115,12 +118,33 @@ class MetroidEnv(gym.Env):
 
         reward = self.calculate_reward(observation, curr_game_state)
 
+        self.game_state_old = curr_game_state
         return observation, reward, done, truncated, info
+
+    # this is a horrible hack!!!!
+    # if we play for a very long time, we're gonna get a TON of items in the
+    # 'explored' list
+    def _calculate_exploration_reward(self, obs):
+        for o in self.explored:
+            # will prob bug out here
+            d = obs - o
+            num_diff_tiles = np.count_nonzero(d)
+            if num_diff_tiles > 100:
+                # A lot of new stuff is on screen!
+                # This is a very unique looking screen!!!
+
+                self.explored.append(obs)
+                return 100
+
+        return 0
+
+
 
 
     def calculate_reward(self, obs, mem_state):
         # TODO do something with 'obs' (the current observation
         # and do some kind of exploration reward
+        reward = self._calculate_exploration_reward(obs)
 
         # for HP and missiles, new is smaller -> BAD, so + weight
         # delta = new - old
@@ -133,7 +157,7 @@ class MetroidEnv(gym.Env):
                 'gmc': -5000,  # if GMC decreases, delta is negative
         }
 
-        # for the "steady state"
+        # for the "steady state" ?? I have no idea but I think this is silly
         current_reward_weights= {
                 'hp': 1, 
                 'missiles': 1,
@@ -141,7 +165,6 @@ class MetroidEnv(gym.Env):
                 'upgrades': 0,
                 'gmc': 0,  # if GMC decreases, delta is negative
         }
-        reward = 0
 
         for k,v in mem_state.items():
             delta = v - self.game_state_old[k]
