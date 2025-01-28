@@ -27,13 +27,13 @@ wrapper.
           (maps tiles, to other tiles)
         - [x] Integrate and verify the RAM mappings 
         - [ ] Make a pull request for PyBoy
-    - [ ] Determine and implement all possible button combos for "actions"
+    - [ ] Determine and implement all possible button combos for "actions" (may
+      need minor improvements)
 
 
 - [ ] Model Training
-    - [ ] Define some reward functions including rewards for
-        - [ ] Killing metroids (primary goal)
-        - [ ] exploring (secondary goal)
+    - [x] Define a baseline test reward function
+    - [ ] Find a way to do exploration reward
     - [ ] Do some kind of extremely bare-bones training to just explore
     - [ ] Research, research, research...
     - [ ] Sektch out some rough reward functions

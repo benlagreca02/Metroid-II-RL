@@ -45,6 +45,7 @@ game_area_observation_space = spaces.Box(low=0, high=255, shape=matrix_shape, dt
 class MetroidEnv(gym.Env):
 
 
+
     def __init__(self, rom_path, emulation_speed_factor=0, debug=False, render_mode=None):
         super().__init__()
         win = 'SDL2' if render_mode is not None else 'null'
@@ -68,43 +69,89 @@ class MetroidEnv(gym.Env):
 
         self.is_render_mode_human = True if render_mode == 'human' else False
 
+        self.game_state_old = self._get_current_mem_state_dict()
+
+    
+    def _get_current_mem_state_dict(self):
+        # GMC is global metroid count
+        vals_of_interest = {
+                'hp': self.pyboy.game_wrapper.current_hp,
+                # May be wrong, so ignoring e-tanks for now
+                # 'e_tanks': self.pyboy.game_wrapper.current_e_tanks
+                'missiles': self.pyboy.game_wrapper.current_missiles,
+                'missile_capacity': self.pyboy.game_wrapper.current_missile_capacity,
+                'upgrades': self.pyboy.game_wrapper.current_major_upgrades,
+                'gmc': self.pyboy.game_wrapper.global_metroid_count,
+        }
+        return vals_of_interest
+
 
     def step(self, action):
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
-        # Move the agent
+        # DO THE ACTION
         if action == 0:
             pass
         else:
-            # This only works for single buttons!
-            # self.pyboy.button(actions[action])
+            # So we can press more than one button at once
             for a in actions[action]:
                 self.pyboy.button(a)
 
-        # Consider disabling renderer when not needed to improve speed:
-        # self.pyboy.tick(1, False)
+        # Change 1 if you only want to "play" every few frames
+        # I think...
         self.pyboy.tick(1, self.is_render_mode_human)
 
-        # done = self.pyboy.game_wrapper.game_over
-        done = 0
-
-        self._calculate_fitness()
-        reward=self._fitness-self._previous_fitness
-
+        
         # Sprites on the screen
         observation=self.pyboy.game_area()
+
+
+        done = self.pyboy.game_wrapper.game_over()
         info = {}
         truncated = False
 
+        # fetch new mem state for reward calculation
+        curr_game_state = self._get_current_mem_state_dict()
+
+        reward = self.calculate_reward(observation, curr_game_state)
+
         return observation, reward, done, truncated, info
 
-    def _calculate_fitness(self):
-        self._previous_fitness=self._fitness
 
-        # NOTE: Only some game wrappers will provide a score
-        # If not, you'll have to investigate how to score the game yourself
-        # self._fitness=self.pyboy.game_wrapper.score
-        self._fitness = 0
+    def calculate_reward(self, obs, mem_state):
+        # TODO do something with 'obs' (the current observation
+        # and do some kind of exploration reward
+
+        # for HP and missiles, new is smaller -> BAD, so + weight
+        # delta = new - old
+        # reward = weight * delta
+        delta_reward_weights= {
+                'hp': 10, # losing health is really bad!
+                'missiles': 10,
+                'missile_capacity': 100,
+                'upgrades': 10000,
+                'gmc': -5000,  # if GMC decreases, delta is negative
+        }
+
+        # for the "steady state"
+        current_reward_weights= {
+                'hp': 1, 
+                'missiles': 1,
+                'missile_capacity': 0,
+                'upgrades': 0,
+                'gmc': 0,  # if GMC decreases, delta is negative
+        }
+        reward = 0
+
+        for k,v in mem_state.items():
+            delta = v - self.game_state_old[k]
+            reward += delta_reward_weights[k] * delta
+            reward += current_reward_weights[k] * v
+
+
+        return reward
+
+
 
     def reset(self, **kwargs):
         self.pyboy.game_wrapper.reset_game()
@@ -114,6 +161,7 @@ class MetroidEnv(gym.Env):
         observation=self.pyboy.game_area()
         info = {}
         return observation, info
+
 
 
     def render(self, mode='human'):
