@@ -1,22 +1,36 @@
-from pyboy import PyBoy
+# from pyboy import PyBoy
 from metroid_env import MetroidEnv
+
+import time
 
 ROM_PATH = "MetroidII.gb"
 
 def main():
-    pyboy = PyBoy(ROM_PATH)
-    env = MetroidEnv(pyboy)
+    # the example code for AI gym environments
+    print("Making env")
+    
+    # use 'human' to see Samus!
+    env = MetroidEnv(ROM_PATH, render_mode='human', emulation_speed_factor=1)
 
-    # Just take random action for now
-    for _ in range(1000000):
-        # this is where you would insert your policy
+
+    for _ in range(10000):
+
+        # Just take random action for now
         action = env.action_space.sample()
 
-        # step (transition) through the environment with the action
-        # receiving the next observation, reward and if the episode has terminated or truncated
+        # noop, do this for manual control
+        # observation, reward, terminated, truncated, info = env.step(0)
+
         observation, reward, terminated, truncated, info = env.step(action)
+        toPrint = f"Observation: {observation}\n" + \
+                  f"Reward: {reward}\n"
+        print(toPrint)
 
+        # observation, reward, terminated, truncated, info = env.step(0)
 
+        # Prints debugging info
+        # print(env.pyboy.game_wrapper)
+        
         # If the episode has ended then we can reset to start a new episode
         if terminated or truncated:
             observation, info = env.reset()
