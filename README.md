@@ -1,12 +1,15 @@
 # Metroid-II-RL
 
-This is my attempt at having reinforcemnt learning algo play Metroid II
+This is my attempt at having reinforcemnt learning play Metroid II
 
-I am implementing a "game wrapper" for Metroid II in the PyBoy emulator.
+Many other simmilar projects are out there, particularly with pokemon red
 
-For now, I'm using a custom fork of the emulator, but once I get my edits pulled
+I am implementing a "game wrapper" for Metroid II in the PyBoy emulator, which
+is being implemented in a fork of the emulator, but once I get my edits pulled
 into main, hopefully you can just use pip to install pyboy and get my metroid
 code.
+
+For now I'm not going to stress too much about documentation.
 
 ## TODO
 
@@ -14,7 +17,9 @@ Lots to do! The first big milestone will be implementing a game wrapper for
 Metroid II in PyBoy and potentially making a pull request with my new custom
 wrapper.
 
-- [ ] Make and verify a custom environment with PyBoy
+- [x] Make and verify a custom environment with PyBoy
+It's not 100% complete, but its good enough to move on with getting my first
+models trained
     - [x] Verify ROM integrity (the rom works)
     - [x] Take random actions in the environment (veryify pyboy interface working)
     - [ ] Implement a `game_wrapper` for Metroid II (makes AI stuff easier)
