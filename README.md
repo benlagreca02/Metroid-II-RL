@@ -11,6 +11,15 @@ code.
 
 For now I'm not going to stress too much about documentation.
 
+
+## Current state
+
+Currently, a pixel-based observation approach is going to be used. A tile-based
+approach would be much more effecinet, and train much faster, however currently
+I just need to get something training.
+
+
+
 ## TODO
 
 Lots to do! The first big milestone will be implementing a game wrapper for
@@ -27,9 +36,6 @@ models trained
         - [ ] Use RAM mappings to calculate more useful info (particularly health)
         - [x] Implement `game_over` function to check if agent is dead
         - [ ] Improve `game_over` to check health, may be slightly faster
-        - [ ] implement `game_area_mapping` potentially, so that all "samus"
-          tiles are treated the same, or all "floor" tiles are treated the same
-          (maps tiles, to other tiles)
         - [x] Integrate and verify the RAM mappings 
         - [ ] Make a pull request for PyBoy
     - [ ] Determine and implement all possible button combos for "actions" (may
@@ -38,10 +44,10 @@ models trained
 
 - [ ] Model Training
     - [x] Define a baseline test reward function
-    - [ ] Find a way to do exploration reward
-    - [ ] Do some kind of extremely bare-bones training to just explore
-    - [ ] Research, research, research...
-    - [ ] Sektch out some rough reward functions
+    - [ ] Fix observations of environments to be Pixels
+    - [ ] Find a way to do exploration reward for pixel screens
+    - [ ] improve  observations of environments to be tiles (will train faster)
 
+    - [ ] Do some kind of extremely bare-bones training to just explore
 
 - [ ] Containerize the program to make running on other machines easy

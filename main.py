@@ -1,16 +1,24 @@
 # from pyboy import PyBoy
 from metroid_env import MetroidEnv
 
+from stable_baselines3.common.env_checker import check_env
+
 import time
 
 ROM_PATH = "MetroidII.gb"
 
 def main():
     # the example code for AI gym environments
-    print("Making env")
     
     # use 'human' to see Samus!
-    env = MetroidEnv(ROM_PATH, render_mode='human', emulation_speed_factor=1)
+    # emulation speed factor is the speed to emulate at
+    # 0 means "Go as fast as you can"
+    # 1 means "go at normal gameboy 'realtime' speed"
+    env = MetroidEnv(ROM_PATH, render_mode=None, emulation_speed_factor=0,
+            debug=False)
+
+    # Stable baselines 3 check for 
+    # check_env(env, warn=True)
 
 
     for _ in range(10000):
@@ -24,6 +32,7 @@ def main():
         observation, reward, terminated, truncated, info = env.step(action)
         # toPrint = f"Reward: {reward}"
         # print(toPrint)
+        # print(observation)
 
         # observation, reward, terminated, truncated, info = env.step(0)
 

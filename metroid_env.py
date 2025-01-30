@@ -6,7 +6,7 @@ from pyboy import PyBoy
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
-
+import cv2
 # TODO will need to update this to inclue ALL possible combos for metroid
 # for example, to screw attack, you must press right AND jump at the same time
 
@@ -39,30 +39,34 @@ actions = [
         ['a', 'left']
 ]
 
-matrix_shape = (16, 20)
-game_area_observation_space = spaces.Box(low=0, high=255, shape=matrix_shape, dtype=np.uint8)
+
+# observation_space = spaces.Box(low=0, high=254, shape=(144,160), dtype=np.int8)
+observation_space = spaces.Box(low=0, high=255, shape=(144,160), dtype=np.uint8)
+
+
 
 class MetroidEnv(gym.Env):
 
-
-
+    # emulation_speed_factor overrides the "debug" emulation speed
     def __init__(self, rom_path, emulation_speed_factor=0, debug=False, render_mode=None):
         super().__init__()
-        win = 'SDL2' if render_mode is not None else 'null'
-        self.pyboy = PyBoy(rom_path, window=win)
 
-        self._fitness=0
-        self._previous_fitness=0
+        self.metadata = {'render_modes': ['human']}
+        assert render_mode is None or render_mode in self.metadata["render_modes"]
+        self.render_mode = render_mode
+
+        win = 'SDL2' if render_mode is not None else 'null'
+        self.pyboy = PyBoy(rom_path, window=win, debug=debug)
+
         self.debug = debug
 
-        # This was their sample code
         if not self.debug:
             self.pyboy.set_emulation_speed(0)
 
         self.pyboy.set_emulation_speed(emulation_speed_factor)
 
         self.action_space = spaces.Discrete(len(actions))
-        self.observation_space = game_area_observation_space
+        self.observation_space = observation_space
 
         # the game_wrapper is a part of PyBoy
         self.pyboy.game_wrapper.start_game()
@@ -73,6 +77,20 @@ class MetroidEnv(gym.Env):
 
         # we have obviously explored the current area, we're there right now!
         self.explored = [self.pyboy.game_area()]
+
+
+    def _get_observation(self):
+        # Used to fetch an observation, this will save work down the line when
+        # converting from pixels to the more compilcated sprited method
+        # Also reduces duplicate code in step() and reset()
+
+        # 160x144 grayscale image for now, but should eventually be 16x20 tile
+        # data
+        
+        # returns RGBA
+        rgb = self.pyboy.screen.ndarray[:, :, :3]   
+        gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+        return gray
 
     
     def _get_current_mem_state_dict(self):
@@ -104,12 +122,18 @@ class MetroidEnv(gym.Env):
         # I think...
         self.pyboy.tick(1, self.is_render_mode_human)
 
-        
-        # Sprites on the screen
-        observation=self.pyboy.game_area()
+        # Getting tiles on the screen is a little too complicated for now
+        # Due to the way the GameBoy shuffles out what tiles are currently
+        # available, there are lots of difficulties with this method
+        # (Tile "135" won't always be the same thing for example)
+        # Tiles on the screen
+        # tile_idxs = self.pyboy.game_area()
 
+        observation = self._get_observation()
 
-        done = self.pyboy.game_wrapper.game_over()
+        # PyBoy Cython weirdness makes "game_over()" an int 
+        done = False if self.pyboy.game_wrapper.game_over() == 0 else True
+
         info = {}
         truncated = False
 
@@ -121,21 +145,8 @@ class MetroidEnv(gym.Env):
         self.game_state_old = curr_game_state
         return observation, reward, done, truncated, info
 
-    # this is a horrible hack!!!!
-    # if we play for a very long time, we're gonna get a TON of items in the
-    # 'explored' list
+    # TODO calculate exploration reward somehow
     def _calculate_exploration_reward(self, obs):
-        for o in self.explored:
-            # will prob bug out here
-            d = obs - o
-            num_diff_tiles = np.count_nonzero(d)
-            if num_diff_tiles > 100:
-                # A lot of new stuff is on screen!
-                # This is a very unique looking screen!!!
-
-                self.explored.append(obs)
-                return 100
-
         return 0
 
 
@@ -178,10 +189,10 @@ class MetroidEnv(gym.Env):
 
     def reset(self, **kwargs):
         self.pyboy.game_wrapper.reset_game()
-        self._fitness=0
-        self._previous_fitness=0
 
-        observation=self.pyboy.game_area()
+        observation = self._get_observation()
+
+
         info = {}
         return observation, info
 
