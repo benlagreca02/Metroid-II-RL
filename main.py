@@ -14,7 +14,10 @@ def main():
     # emulation speed factor is the speed to emulate at
     # 0 means "Go as fast as you can"
     # 1 means "go at normal gameboy 'realtime' speed"
-    env = MetroidEnv(ROM_PATH, render_mode=None, emulation_speed_factor=0,
+    env = MetroidEnv(ROM_PATH, 
+            render_mode='human',
+            emulation_speed_factor=1,  # speed to run emulation
+            num_to_tick=1,   # frames to skip over i.e. do an input every N frames
             debug=False)
 
     # Stable baselines 3 check for 
@@ -27,14 +30,12 @@ def main():
         action = env.action_space.sample()
 
         # noop, do this for manual control
-        # observation, reward, terminated, truncated, info = env.step(0)
+        observation, reward, terminated, truncated, info = env.step(0)
+        # observation, reward, terminated, truncated, info = env.step(action)
 
-        observation, reward, terminated, truncated, info = env.step(action)
-        # toPrint = f"Reward: {reward}"
-        # print(toPrint)
-        # print(observation)
-
-        # observation, reward, terminated, truncated, info = env.step(0)
+        xA, yA = env.getCoordinatesArea()
+        xP, yP = env.getCoordinatesPixels()
+        print(f"P: {xP, yP}\tA: {xA, yA}")
 
         # Prints debugging info
         # print(env.pyboy.game_wrapper)

@@ -44,12 +44,52 @@ actions = [
 observation_space = spaces.Box(low=0, high=255, shape=(144,160), dtype=np.uint8)
 
 
+class ExplorationCoordinate:
+    # x,y w.r.t Area, and x,y w.r.t. Pixel
+    def __init__(self, xA, yA, xP, yP):
+        self.areaCoords = xA, yA
+        self.pixelCoords = xP, yP
+    def __hash__(self): 
+        # There may be a much faster way to do this
+        # Would have to do timing analysis to figure out if this is worth
+        # improving
+        return hash((self.areaCoords, self.pixelCoords))
+
+
+
 
 class MetroidEnv(gym.Env):
+    exploration_reward = 100
+
+    # for HP and missiles, new is smaller -> BAD, so + weight
+    # delta = new - old
+    # reward = weight * delta
+    delta_reward_weights= {
+            'hp': 10, # losing health is really bad!
+            'missiles': 10,
+            'missile_capacity': 100,
+            'upgrades': 10000,
+            'gmc': -5000,  # if GMC decreases, delta is negative
+    }
+
+    # for the "steady state" ?? I have no idea but I think this is silly
+    current_reward_weights= {
+            'hp': 1, 
+            'missiles': 1,
+            'missile_capacity': 0,
+            'upgrades': 0,
+            'gmc': 0,  # if GMC decreases, delta is negative
+    }
+
 
     # emulation_speed_factor overrides the "debug" emulation speed
-    def __init__(self, rom_path, emulation_speed_factor=0, debug=False, render_mode=None):
+    def __init__(self, rom_path, emulation_speed_factor=0, debug=False,
+            render_mode=None, num_to_tick=1):
         super().__init__()
+
+        # Emulator doesn't support "half speed" unfortunately
+        assert type(num_to_tick) is int
+        self.num_to_tick = num_to_tick
 
         self.metadata = {'render_modes': ['human']}
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -58,11 +98,8 @@ class MetroidEnv(gym.Env):
         win = 'SDL2' if render_mode is not None else 'null'
         self.pyboy = PyBoy(rom_path, window=win, debug=debug)
 
-        self.debug = debug
 
-        if not self.debug:
-            self.pyboy.set_emulation_speed(0)
-
+        assert type(emulation_speed_factor) is int
         self.pyboy.set_emulation_speed(emulation_speed_factor)
 
         self.action_space = spaces.Discrete(len(actions))
@@ -76,7 +113,7 @@ class MetroidEnv(gym.Env):
         self.game_state_old = self._get_current_mem_state_dict()
 
         # we have obviously explored the current area, we're there right now!
-        self.explored = [self.pyboy.game_area()]
+        self.explored = set()
 
 
     def _get_observation(self):
@@ -92,6 +129,20 @@ class MetroidEnv(gym.Env):
         gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
         return gray
 
+
+    def getAllCoordData(self):
+        return self.getCoordinatesArea(), self.getCoordinatesPixels()
+
+
+    def getCoordinatesArea(self):
+        x = self.pyboy.game_wrapper.x_pos_area
+        y = self.pyboy.game_wrapper.y_pos_area
+        return x,y
+
+    def getCoordinatesPixels(self):
+        x = self.pyboy.game_wrapper.x_pos_pixels
+        y = self.pyboy.game_wrapper.y_pos_pixels
+        return x,y
     
     def _get_current_mem_state_dict(self):
         # GMC is global metroid count
@@ -120,7 +171,7 @@ class MetroidEnv(gym.Env):
 
         # Change 1 if you only want to "play" every few frames
         # I think...
-        self.pyboy.tick(1, self.is_render_mode_human)
+        self.pyboy.tick(self.num_to_tick, self.is_render_mode_human)
 
         # Getting tiles on the screen is a little too complicated for now
         # Due to the way the GameBoy shuffles out what tiles are currently
@@ -139,50 +190,44 @@ class MetroidEnv(gym.Env):
 
         # fetch new mem state for reward calculation
         curr_game_state = self._get_current_mem_state_dict()
-
-        reward = self.calculate_reward(observation, curr_game_state)
+        
+        reward = self._calc_and_update_exploration()
+        reward += self._calculate_reward(observation, curr_game_state)
 
         self.game_state_old = curr_game_state
         return observation, reward, done, truncated, info
 
-    # TODO calculate exploration reward somehow
-    def _calculate_exploration_reward(self, obs):
-        return 0
+    # EXPLORATION REWARD CALCULATION
+    def _calc_and_update_exploration(self):
 
+        # TODO
+        # Could make it only every few coordinates, i.e. do pixel / 4 or
+        # something so "0,1,2,3" get treated the same, since they're so close
+        # together
 
+        
+        # Could make this a dict and do some kind of time thing
+        # If we were JUST here, its not that great, but if its been a while
+        # since we've been somewhere, going back is somewhat beneficial in case
+        # we ahve a new ability.
+        # I.E. agent can have little reward for exploring somewhere "stale"
 
+        # if these coordinates are new, cache them, give reward, and move on
+        a,p = self.getAllCoordData()
+        coordData = ExplorationCoordinate(*a, *p)
 
-    def calculate_reward(self, obs, mem_state):
-        # TODO do something with 'obs' (the current observation
-        # and do some kind of exploration reward
-        reward = self._calculate_exploration_reward(obs)
+        if coordData in self.explored:
+            # We've been here before
+            return 0
+        self.explored.add(coordData)
+        return self.exploration_reward
 
-        # for HP and missiles, new is smaller -> BAD, so + weight
-        # delta = new - old
-        # reward = weight * delta
-        delta_reward_weights= {
-                'hp': 10, # losing health is really bad!
-                'missiles': 10,
-                'missile_capacity': 100,
-                'upgrades': 10000,
-                'gmc': -5000,  # if GMC decreases, delta is negative
-        }
-
-        # for the "steady state" ?? I have no idea but I think this is silly
-        current_reward_weights= {
-                'hp': 1, 
-                'missiles': 1,
-                'missile_capacity': 0,
-                'upgrades': 0,
-                'gmc': 0,  # if GMC decreases, delta is negative
-        }
-
+    def _calculate_reward(self, obs, mem_state):
+        reward = 0
         for k,v in mem_state.items():
             delta = v - self.game_state_old[k]
-            reward += delta_reward_weights[k] * delta
-            reward += current_reward_weights[k] * v
-
-
+            reward += self.delta_reward_weights[k] * delta
+            reward += self.current_reward_weights[k] * v
         return reward
 
 
