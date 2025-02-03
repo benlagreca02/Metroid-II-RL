@@ -30,18 +30,20 @@ def main():
         action = env.action_space.sample()
 
         # noop, do this for manual control
-        observation, reward, terminated, truncated, info = env.step(0)
-        # observation, reward, terminated, truncated, info = env.step(action)
+        # observation, reward, terminated, truncated, info = env.step(0)
+        observation, reward, terminated, truncated, info = env.step(action)
+
 
         xA, yA = env.getCoordinatesArea()
         xP, yP = env.getCoordinatesPixels()
-        print(f"P: {xP, yP}\tA: {xA, yA}")
+        print(f"P: {xP, yP}\tA: {xA, yA}\tReward: {reward}")
 
         # Prints debugging info
         # print(env.pyboy.game_wrapper)
         
         # If the episode has ended then we can reset to start a new episode
         if terminated or truncated:
+            print("DONE")
             observation, info = env.reset()
 
     env.close()

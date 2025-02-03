@@ -43,23 +43,14 @@ actions = [
 # observation_space = spaces.Box(low=0, high=254, shape=(144,160), dtype=np.int8)
 observation_space = spaces.Box(low=0, high=255, shape=(144,160), dtype=np.uint8)
 
+DEFAULT_NUM_TO_TICK = 2
 
-class ExplorationCoordinate:
-    # x,y w.r.t Area, and x,y w.r.t. Pixel
-    def __init__(self, xA, yA, xP, yP):
-        self.areaCoords = xA, yA
-        self.pixelCoords = xP, yP
-    def __hash__(self): 
-        # There may be a much faster way to do this
-        # Would have to do timing analysis to figure out if this is worth
-        # improving
-        return hash((self.areaCoords, self.pixelCoords))
-
+ROM_PATH = "MetroidII.gb"
 
 
 
 class MetroidEnv(gym.Env):
-    exploration_reward = 100
+    exploration_reward = 50
 
     # for HP and missiles, new is smaller -> BAD, so + weight
     # delta = new - old
@@ -83,8 +74,8 @@ class MetroidEnv(gym.Env):
 
 
     # emulation_speed_factor overrides the "debug" emulation speed
-    def __init__(self, rom_path, emulation_speed_factor=0, debug=False,
-            render_mode=None, num_to_tick=1):
+    def __init__(self, rom_path=ROM_PATH, emulation_speed_factor=0, debug=False,
+            render_mode=None, num_to_tick=DEFAULT_NUM_TO_TICK):
         super().__init__()
 
         # Emulator doesn't support "half speed" unfortunately
@@ -115,6 +106,9 @@ class MetroidEnv(gym.Env):
         # we have obviously explored the current area, we're there right now!
         self.explored = set()
 
+    def getShit(self):
+
+        return self._get_observation()
 
     def _get_observation(self):
         # Used to fetch an observation, this will save work down the line when
@@ -213,14 +207,15 @@ class MetroidEnv(gym.Env):
         # I.E. agent can have little reward for exploring somewhere "stale"
 
         # if these coordinates are new, cache them, give reward, and move on
-        a,p = self.getAllCoordData()
-        coordData = ExplorationCoordinate(*a, *p)
+        coordData = self.getAllCoordData()
 
         if coordData in self.explored:
             # We've been here before
-            return 0
+            return -1
         self.explored.add(coordData)
         return self.exploration_reward
+
+
 
     def _calculate_reward(self, obs, mem_state):
         reward = 0
@@ -251,4 +246,17 @@ class MetroidEnv(gym.Env):
 
     def close(self):
         self.pyboy.stop()
+
+
+
+
+# REGISTER THE ENVIRONMENT WITH GYMNASIUM
+
+print("REGISTERING METROID ENV")
+gym.register(
+        id="MetroidII", 
+        entry_point=MetroidEnv,
+        nondeterministic=True,    # randomness is present in the game
+        max_episode_steps=100000,
+)
 

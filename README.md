@@ -16,9 +16,12 @@ For now I'm not going to stress too much about documentation.
 
 Currently, a pixel-based observation approach is going to be used. A tile-based
 approach would be much more effecinet, and train much faster, however currently
-I just need to get something training.
 
+Some incredibly simple training has been done, but its terrible unsurprisingly.
 
+The two primary tasks of the project are optimizing the training, and the
+training itsself. These will be worked on in parallel, so training runs can be
+done 
 
 ## TODO
 
@@ -26,28 +29,43 @@ Lots to do! The first big milestone will be implementing a game wrapper for
 Metroid II in PyBoy and potentially making a pull request with my new custom
 wrapper.
 
-- [x] Make and verify a custom environment with PyBoy
+### Custom Environment
 It's not 100% complete, but its good enough to move on with getting my first
 models trained
-    - [x] Verify ROM integrity (the rom works)
-    - [x] Take random actions in the environment (veryify pyboy interface working)
-    - [ ] Implement a `game_wrapper` for Metroid II (makes AI stuff easier)
-        - [x] Implement the `start_game` function to skip though the menu
-        - [ ] Use RAM mappings to calculate more useful info (particularly health)
-        - [x] Implement `game_over` function to check if agent is dead
-        - [ ] Improve `game_over` to check health, may be slightly faster
-        - [x] Integrate and verify the RAM mappings 
-        - [ ] Make a pull request for PyBoy
-    - [ ] Determine and implement all possible button combos for "actions" (may
-      need minor improvements)
+- [x] Verify ROM integrity (the rom works)
+- [x] Take random actions in the environment (veryify pyboy interface working)
+- [x] Implement a `game_wrapper` for Metroid II (makes AI stuff easier)
+    - [ ] Potentially use RAM mappings to calculate more useful info (particularly health)
+    - [ ] Improve `game_over` to check health, may be slightly faster than using "GAME OVER" screen
+    - [ ] Make a pull request for PyBoy to merge my code in
+    - [x] Implement the `start_game` function to skip though the menu
+    - [x] Implement `game_over` function to check if agent is dead
+    - [x] Integrate and verify the RAM mappings 
+- [x] Determine and implement all possible button combos for "actions" (may
+  need minor improvements)
 
 
-- [ ] Model Training
-    - [x] Define a baseline test reward function
-    - [ ] Fix observations of environments to be Pixels
-    - [ ] Find a way to do exploration reward for pixel screens
-    - [ ] improve  observations of environments to be tiles (will train faster)
+### Model Training
+Some simple training has been done, but the reward functions need to heavily be
+tweaked
+- [x] Define a baseline test reward function
+- [x] make observations of environments pixels of screen
+- [x] Write simple exploration function using game coordinate hashing
+- [x] Do some kind of extremely bare-bones training to just explore
 
-    - [ ] Do some kind of extremely bare-bones training to just explore
+#### Milestones
+- [ ] Stop shooting randomly and "spazzing out"
+- [ ] Get out of starting area relatively quickly
+- [ ] Avoid enemies/kill them
+- [ ] Drop down through first major shaft (requires downward jump shooting) 
+- [ ] Kill first metroid
 
-- [ ] Containerize the program to make running on other machines easy
+
+### Optimization
+- [ ] improve  observations of environments to be tiles (will train faster,
+  but large undertaking)
+- [ ] Rewrite to use Pufferlib, instead of vanilla SB3
+
+### Misc
+- [ ] Containerize the program to make running on other machines easy (either
+  with conda, or docker)
