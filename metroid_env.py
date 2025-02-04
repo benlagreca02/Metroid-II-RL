@@ -251,6 +251,6 @@ gym.register(
         id="MetroidII", 
         entry_point=MetroidEnv,
         nondeterministic=True,    # randomness is present in the game
-        max_episode_steps=1_000,
+        max_episode_steps=100_000,
 )
 
