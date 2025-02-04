@@ -13,10 +13,24 @@ from metroid_env import MetroidEnv
 # Also multiplies timesteps
 NUM_ENVS = 8
 
-TIMESTEPS = 1000 
-TRAIN_STEPS_BATCH = TIMESTEPS // 10
+# Roughly half an hour of "gameplay" if doing real time
+# Timestep count for one environment
+TIMESTEPS = 100000
 
-LOG_DIR = 
+EPOCH_COUNT = 100
+
+# across all environments 
+TOTAL_TIMESTEPS = TIMESTEPS * NUM_ENVS
+
+CHECKPOINT_FREQUENCY = TIMESTEPS//4
+EVAL_FREQUENCY = TIMESTEPS/2
+
+# How many steps until we do a learning update
+TRAIN_STEPS_BATCH = TIMESTEPS // 10
+# True batch size to use when running multiple envs
+BATCH_SIZE = int(TRAIN_STEPS_BATCH * NUM_ENVS)
+
+LOG_DIR =  './log/'
 
 def main():
     def make_env():
@@ -30,13 +44,13 @@ def main():
     # env = make_env()
     # eval_env = make_env()
 
-    checkpoint_callback = CheckpointCallback(save_freq=TIMESTEPS/4,
-                                             save_path='./logs/',
+    checkpoint_callback = CheckpointCallback(save_freq=CHECKPOINT_FREQUENCY,
+                                             save_path=LOG_DIR,
                                              name_prefix="metroid")
 
 
-    eval_callback = EvalCallback(eval_env, best_model_save_path='./logs/bestModel/',
-                             log_path='./logs/', eval_freq=1000,
+    eval_callback = EvalCallback(eval_env, best_model_save_path=LOG_DIR,
+                             log_path=LOG_DIR, eval_freq=EVAL_FREQUENCY,
                              deterministic=False, render=False)
 
     # callbacks = [checkpoint_callback, tb_callback, eval_callback]
@@ -47,20 +61,28 @@ def main():
     # model = PPO("MultiInputPolicy",
     model = PPO("MlpPolicy",
             env=env,
+            # learning_rate= ,
+
+            # Num steps to run for each env per update
+            # i.e. batch size is n_steps * n_env
+            n_steps=TRAIN_STEPS_BATCH,
+
+            # Discount factor
+            # gamma=0.997,
+            # Entropy coefficient for loss calculation
+            # ent_coef=0.01,
+            tensorboard_log=LOG_DIR,
             verbose=1,
-            n_steps=int(TRAIN_STEPS_BATCH),
-            batch_size=int((TRAIN_STEPS_BATCH*NUM_ENVS)//4),
-            n_epochs=1,
-            gamma=0.997,
-            ent_coef=0.01,
-            tensorboard_log='./logs/')
+
+            batch_size=BATCH_SIZE,
+            n_epochs=EPOCH_COUNT)
 
 
     # model = PPO('CnnPolicy', env, tensorboard_log='./ppo_tensorboard/', verbose=1)
-    new_logger = configure('./logs/', ["stdout", 'csv', "tensorboard"])
+    new_logger = configure(LOG_DIR, ["stdout", 'csv', "tensorboard"])
     model.set_logger(new_logger)
 
-    model.learn( total_timesteps=(TIMESTEPS)*NUM_ENVS*100,
+    model.learn( total_timesteps=TOTAL_TIMESTEPS,
                  callback=CallbackList(callbacks),
                  progress_bar=True,
                  log_interval=10,

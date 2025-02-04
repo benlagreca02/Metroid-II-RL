@@ -46,7 +46,7 @@ observation_space = spaces.Box(low=0, high=255, shape=(72,80), dtype=np.uint8)
 
 
 # BY DEFAULT USES THESE PARAMETERS 
-DEFAULT_NUM_TO_TICK = 2
+DEFAULT_NUM_TO_TICK = 4
 ROM_PATH = "MetroidII.gb"
 # emulation_speed_factor=0 (emulate as fast as you can)
 # render_mode=None (Don't show the GUI for the game
@@ -245,6 +245,9 @@ class MetroidEnv(gym.Env):
 
 
 # REGISTER THE ENVIRONMENT WITH GYMNASIUM
+
+# From my math, 200_000 is about a hour in real time
+# This was done with a 2 timestep
 
 print("REGISTERING METROID ENV")
 gym.register(
