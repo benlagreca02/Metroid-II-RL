@@ -23,6 +23,31 @@ The two primary tasks of the project are optimizing the training, and the
 training itsself. These will be worked on in parallel, so training runs can be
 done 
 
+`main.py` is going to mostly be used for testing purposes.
+
+`train.py` is the script used to start a training run.
+
+`view.py` is the script used to view a training result.
+
+## Helpful info
+
+Through testing and some math, roughly 216,000 iterations correspond to an hour
+of "real life" game time. This was calculated by measuring 1000 iteration's
+time. The output of the script was as follows. This assumes 1000 iterations
+
+```
+Human Time: 16.650566339492798
+Machine time: 0.2655789852142334
+Machine is 62.69534589139785 times faster
+time per step HUMAN: 0.016650566339492797
+time per step FAST: 0.0002655789852142334
+One hour of human gameplay = 216208.8620049702
+```
+
+the math for this was simply
+`time / (measured_time / iterations) --> 3600 / (16.65/1000)`
+
+
 ## TODO
 
 Lots to do! The first big milestone will be implementing a game wrapper for
@@ -44,15 +69,6 @@ models trained
 - [x] Determine and implement all possible button combos for "actions" (may
   need minor improvements)
 
-
-### Model Training
-Some simple training has been done, but the reward functions need to heavily be
-tweaked
-- [x] Define a baseline test reward function
-- [x] make observations of environments pixels of screen
-- [x] Write simple exploration function using game coordinate hashing
-- [x] Do some kind of extremely bare-bones training to just explore
-
 #### Milestones
 - [ ] Stop shooting randomly and "spazzing out"
 - [ ] Get out of starting area relatively quickly
@@ -60,6 +76,14 @@ tweaked
 - [ ] Drop down through first major shaft (requires downward jump shooting) 
 - [ ] Kill first metroid
 
+### Model Training
+Some simple training has been done, but the reward functions need to heavily be
+tweaked
+- [ ] Rewrite, rewrite, rewrite...
+- [x] Define a baseline test reward function
+- [x] make observations of environments pixels of screen
+- [x] Write simple exploration function using game coordinate hashing
+- [x] Do some kind of extremely bare-bones training to just explore
 
 ### Optimization
 - [ ] improve  observations of environments to be tiles (will train faster,

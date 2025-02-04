@@ -1,5 +1,5 @@
 # This code is from the pyboy example for how to create a gymnasium environment
-
+import sys
 from pyboy import PyBoy
 
 # Adopted from https://github.com/NicoleFaye/PyBoy/blob/rl-test/PokemonPinballEnv.py
@@ -41,37 +41,45 @@ actions = [
 
 
 # observation_space = spaces.Box(low=0, high=254, shape=(144,160), dtype=np.int8)
-observation_space = spaces.Box(low=0, high=255, shape=(144,160), dtype=np.uint8)
+# observation_space = spaces.Box(low=0, high=255, shape=(144,160), dtype=np.uint8)
+observation_space = spaces.Box(low=0, high=255, shape=(72,80), dtype=np.uint8)
 
+
+# BY DEFAULT USES THESE PARAMETERS 
 DEFAULT_NUM_TO_TICK = 2
-
 ROM_PATH = "MetroidII.gb"
+# emulation_speed_factor=0 (emulate as fast as you can)
+# render_mode=None (Don't show the GUI for the game
 
+# When registering, usees
+# max_episode_steps=100000
 
 
 class MetroidEnv(gym.Env):
-    exploration_reward = 50
+
+    # Reward for hitting a new coordinate
+    exploration_reward = 0.25
+    # Reward for NOT hitting a new coordinate
+    no_exploration_reward = -1
+    
+    # all pixels vals are integer divided by this value to make the reward
+    # slightly more sparse, and decrese the amount of unique pixel values we
+    # cache. This may become an issue in the future, with thosuands of
+    # coordinates cached, checking "if we've been here before" shouldn't get
+    # more expensive becuase I'm using a set (Set has 0(1) lookup time)
+    # Pixels are from 0-255
+    pixel_exploration_skip = 16 
 
     # for HP and missiles, new is smaller -> BAD, so + weight
     # delta = new - old
     # reward = weight * delta
-    delta_reward_weights= {
-            'hp': 10, # losing health is really bad!
-            'missiles': 10,
-            'missile_capacity': 100,
-            'upgrades': 10000,
-            'gmc': -5000,  # if GMC decreases, delta is negative
+    reward_weights = {
+            'hp': 1,                
+            'missiles': 0.5,        
+            'missile_capacity': 2,
+            'upgrades': 10,   # HUGE deal if we get a new upgrade
+            'gmc': -5,  # if GMC decreases, delta is negative
     }
-
-    # for the "steady state" ?? I have no idea but I think this is silly
-    current_reward_weights= {
-            'hp': 1, 
-            'missiles': 1,
-            'missile_capacity': 0,
-            'upgrades': 0,
-            'gmc': 0,  # if GMC decreases, delta is negative
-    }
-
 
     # emulation_speed_factor overrides the "debug" emulation speed
     def __init__(self, rom_path=ROM_PATH, emulation_speed_factor=0, debug=False,
@@ -89,7 +97,6 @@ class MetroidEnv(gym.Env):
         win = 'SDL2' if render_mode is not None else 'null'
         self.pyboy = PyBoy(rom_path, window=win, debug=debug)
 
-
         assert type(emulation_speed_factor) is int
         self.pyboy.set_emulation_speed(emulation_speed_factor)
 
@@ -103,24 +110,24 @@ class MetroidEnv(gym.Env):
 
         self.game_state_old = self._get_current_mem_state_dict()
 
-        # we have obviously explored the current area, we're there right now!
         self.explored = set()
+        self.explored.add(self.getAllCoordData())
 
-    def getShit(self):
-
-        return self._get_observation()
-
-    def _get_observation(self):
-        # Used to fetch an observation, this will save work down the line when
-        # converting from pixels to the more compilcated sprited method
-        # Also reduces duplicate code in step() and reset()
-
-        # 160x144 grayscale image for now, but should eventually be 16x20 tile
-        # data
+    def _get_obs(self):
+        # Get an observation from environment
+        # Used in step, and reset, so it reduces code and makes it much cleaner
+        # to do this in its own function
         
         # returns RGBA
-        rgb = self.pyboy.screen.ndarray[:, :, :3]   
-        gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+        rgb = self.pyboy.screen.ndarray[:, :, :3]
+
+        # reduce by 50%, less input data -> faster training
+        h, w = rgb.shape[:2]
+        smaller = cv2.resize(rgb, (w//2, h//2))
+
+        # cast to grayscale
+        gray = cv2.cvtColor(smaller, cv2.COLOR_RGB2GRAY)
+
         return gray
 
 
@@ -163,8 +170,6 @@ class MetroidEnv(gym.Env):
             for a in actions[action]:
                 self.pyboy.button(a)
 
-        # Change 1 if you only want to "play" every few frames
-        # I think...
         self.pyboy.tick(self.num_to_tick, self.is_render_mode_human)
 
         # Getting tiles on the screen is a little too complicated for now
@@ -174,7 +179,7 @@ class MetroidEnv(gym.Env):
         # Tiles on the screen
         # tile_idxs = self.pyboy.game_area()
 
-        observation = self._get_observation()
+        observation = self._get_obs()
 
         # PyBoy Cython weirdness makes "game_over()" an int 
         done = False if self.pyboy.game_wrapper.game_over() == 0 else True
@@ -183,23 +188,23 @@ class MetroidEnv(gym.Env):
         truncated = False
 
         # fetch new mem state for reward calculation
-        curr_game_state = self._get_current_mem_state_dict()
-        
-        reward = self._calc_and_update_exploration()
-        reward += self._calculate_reward(observation, curr_game_state)
+        curr_game_state = self._get_current_mem_state_dict() 
+        reward = self._calculate_reward(curr_game_state)
 
         self.game_state_old = curr_game_state
         return observation, reward, done, truncated, info
 
-    # EXPLORATION REWARD CALCULATION
+    # Includes exploration reward caluclation ,which will fetch the current
+    # coordinates and check if we've been there before
+    def _calculate_reward(self, mem_state):
+        reward = self._calc_and_update_exploration()
+        # iterate through observations, and "weights"
+        for k,v in mem_state.items():
+            reward += self.reward_weights[k] * v
+        return reward
+
     def _calc_and_update_exploration(self):
 
-        # TODO
-        # Could make it only every few coordinates, i.e. do pixel / 4 or
-        # something so "0,1,2,3" get treated the same, since they're so close
-        # together
-
-        
         # Could make this a dict and do some kind of time thing
         # If we were JUST here, its not that great, but if its been a while
         # since we've been somewhere, going back is somewhat beneficial in case
@@ -207,32 +212,23 @@ class MetroidEnv(gym.Env):
         # I.E. agent can have little reward for exploring somewhere "stale"
 
         # if these coordinates are new, cache them, give reward, and move on
-        coordData = self.getAllCoordData()
+        pixX, pixY = self.getCoordinatesPixels()
+        # pixels move very quickly, this makes it so the reward only triggers
+        # after going a direction for a while
+        pixX = pixX // self.pixel_exploration_skip
+        pixY = pixY // self.pixel_exploration_skip
+
+        coordData = ((pixX, pixY), self.getCoordinatesArea())
 
         if coordData in self.explored:
             # We've been here before
-            return -1
+            return self.no_exploration_reward
         self.explored.add(coordData)
         return self.exploration_reward
 
-
-
-    def _calculate_reward(self, obs, mem_state):
-        reward = 0
-        for k,v in mem_state.items():
-            delta = v - self.game_state_old[k]
-            reward += self.delta_reward_weights[k] * delta
-            reward += self.current_reward_weights[k] * v
-        return reward
-
-
-
     def reset(self, **kwargs):
         self.pyboy.game_wrapper.reset_game()
-
-        observation = self._get_observation()
-
-
+        observation = self._get_obs()
         info = {}
         return observation, info
 
@@ -248,8 +244,6 @@ class MetroidEnv(gym.Env):
         self.pyboy.stop()
 
 
-
-
 # REGISTER THE ENVIRONMENT WITH GYMNASIUM
 
 print("REGISTERING METROID ENV")
@@ -257,6 +251,6 @@ gym.register(
         id="MetroidII", 
         entry_point=MetroidEnv,
         nondeterministic=True,    # randomness is present in the game
-        max_episode_steps=100000,
+        max_episode_steps=1_000,
 )
 

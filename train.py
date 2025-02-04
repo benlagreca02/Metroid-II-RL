@@ -9,38 +9,21 @@ from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
 
 from metroid_env import MetroidEnv
 
-
-
-
-
-# the example code for AI gym environments
-print("Making env")
-
-
-'''
-vecenv = pufferlib.vector.make(
-        env_creator=MetroidEnv,
-        # This is the only normal arg
-        env_args=ROM_PATH,
-        num_envs=4,
-        backend=pufferlib.vector.Multiprocessing,
-        num_workers=2
-
-'''
-
+# Determines length of environment vecotrs
+# Also multiplies timesteps
 NUM_ENVS = 8
-TIMESTEPS = 1e4 # 1,000,000
+
+TIMESTEPS = 1000 
 TRAIN_STEPS_BATCH = TIMESTEPS // 10
 
-
+LOG_DIR = 
 
 def main():
-
     def make_env():
-        # in case we want to complicate the env later
+        # in case we want to complicate the env creation later
         return gym.make("MetroidII")
 
-    # env = gym.make("MetroidII")
+
 
     env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
     eval_env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
@@ -50,9 +33,6 @@ def main():
     checkpoint_callback = CheckpointCallback(save_freq=TIMESTEPS/4,
                                              save_path='./logs/',
                                              name_prefix="metroid")
-
-    # tb_callback = TensorboardCallback('./logs/')
-
 
 
     eval_callback = EvalCallback(eval_env, best_model_save_path='./logs/bestModel/',
