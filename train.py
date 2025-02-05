@@ -11,7 +11,7 @@ from metroid_env import MetroidEnv
 
 # Determines length of environment vecotrs
 # Also multiplies timesteps
-NUM_ENVS = 8
+NUM_ENVS = 6
 
 # Roughly half an hour of "gameplay" if doing real time
 # Timestep count for one environment
@@ -20,7 +20,7 @@ TIMESTEPS = 100000
 EPOCH_COUNT = 100
 
 # across all environments 
-TOTAL_TIMESTEPS = TIMESTEPS * NUM_ENVS
+TOTAL_TIMESTEPS = TIMESTEPS * NUM_ENVS * 100
 
 CHECKPOINT_FREQUENCY = TIMESTEPS//4
 EVAL_FREQUENCY = TIMESTEPS/2

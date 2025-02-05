@@ -74,8 +74,8 @@ class MetroidEnv(gym.Env):
     # delta = new - old
     # reward = weight * delta
     reward_weights = {
-            'hp': 1,                
-            'missiles': 0.5,        
+            'hp': 5,                
+            'missiles': 1,        
             'missile_capacity': 2,
             'upgrades': 10,   # HUGE deal if we get a new upgrade
             'gmc': -5,  # if GMC decreases, delta is negative
