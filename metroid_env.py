@@ -43,7 +43,7 @@ actions = [
 # observation_space = spaces.Box(low=0, high=254, shape=(144,160), dtype=np.int8)
 # observation_space = spaces.Box(low=0, high=255, shape=(144,160), dtype=np.uint8)
 # observation_space = spaces.Box(low=0, high=255, shape=(72,80), dtype=np.uint8)
-observation_space = spaces.Box(low=0, high=255, shape=(72*80,), dtype=np.uint8)
+observation_space = spaces.Box(low=0, high=255, shape=(72, 80), dtype=np.uint8)
 
 
 # BY DEFAULT USES THESE PARAMETERS 
@@ -129,7 +129,8 @@ class MetroidEnv(gym.Env):
         # cast to grayscale
         gray = cv2.cvtColor(smaller, cv2.COLOR_RGB2GRAY)
 
-        return gray.flatten()
+        # TODO may have to flatten this or change it to work with CNN policy
+        return gray
 
 
     def getAllCoordData(self):

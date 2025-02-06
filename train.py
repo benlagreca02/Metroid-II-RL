@@ -44,10 +44,11 @@ def main():
 
 
     # Check env
-    # print("Checking ENV")
-    # env = make_env() 
-    # check_env(env)
-    # print("Done checking env!")
+    print("Checking ENV")
+    env = make_env() 
+    check_env(env)
+    print("Done checking env!")
+    input("Holding...")
 
     env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
     eval_env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
@@ -70,8 +71,9 @@ def main():
 
 
     # model = PPO("MultiInputPolicy",
-    model = PPO("CnnPolicy",
-            policy_kwargs=dict(normalize_images=False),
+    # TODO should probably make this work with CNN
+    model = PPO("MlpPolicy",
+            # policy_kwargs=dict(normalize_images=False),
             env=env,
             learning_rate=LEARNING_RATE,
 
