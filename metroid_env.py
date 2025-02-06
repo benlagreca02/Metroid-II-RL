@@ -58,7 +58,7 @@ ROM_PATH = "MetroidII.gb"
 class MetroidEnv(gym.Env):
 
     # Reward for hitting a new coordinate
-    exploration_reward = 0.25
+    exploration_reward = 1
     # Reward for NOT hitting a new coordinate
     no_exploration_reward = -1
     
@@ -68,7 +68,7 @@ class MetroidEnv(gym.Env):
     # coordinates cached, checking "if we've been here before" shouldn't get
     # more expensive becuase I'm using a set (Set has 0(1) lookup time)
     # Pixels are from 0-255
-    pixel_exploration_skip = 16 
+    pixel_exploration_skip = 51
 
     # for HP and missiles, new is smaller -> BAD, so + weight
     # delta = new - old

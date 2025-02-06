@@ -13,20 +13,24 @@ from metroid_env import MetroidEnv
 # Also multiplies timesteps
 NUM_ENVS = 6
 
-# Roughly half an hour of "gameplay" if doing real time
+# Roughly an hour of "gameplay" if doing real time
 # Timestep count for one environment
-TIMESTEPS = 100000
-
+TIMESTEPS = 200000
+LEARNING_RATE = 2.5e-4
+ENT_COEF = 0.01
+# realisticly it should be a lot smaller
+# This makes sure training doesn't stop in the middle of the night
 EPOCH_COUNT = 100
+GAMMA = 0.997
 
 # across all environments 
 TOTAL_TIMESTEPS = TIMESTEPS * NUM_ENVS * 100
 
 CHECKPOINT_FREQUENCY = TIMESTEPS//4
-EVAL_FREQUENCY = TIMESTEPS/2
+EVAL_FREQUENCY = TIMESTEPS//5
 
 # How many steps until we do a learning update
-TRAIN_STEPS_BATCH = TIMESTEPS // 10
+TRAIN_STEPS_BATCH = TIMESTEPS // 15
 # True batch size to use when running multiple envs
 BATCH_SIZE = int(TRAIN_STEPS_BATCH * NUM_ENVS)
 
@@ -38,6 +42,7 @@ def main():
         return gym.make("MetroidII")
 
 
+    
 
     env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
     eval_env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
@@ -59,18 +64,20 @@ def main():
 
 
     # model = PPO("MultiInputPolicy",
-    model = PPO("MlpPolicy",
+    model = PPO("CnnPolicy",
+            # normalize_images=False,
+            policy_kwargs=dict(normalize_images=False)
             env=env,
-            # learning_rate= ,
+            learning_rate=LEARNING_RATE,
 
             # Num steps to run for each env per update
             # i.e. batch size is n_steps * n_env
             n_steps=TRAIN_STEPS_BATCH,
 
             # Discount factor
-            # gamma=0.997,
+            gamma=GAMMA,
             # Entropy coefficient for loss calculation
-            # ent_coef=0.01,
+            ent_coef=ENT_COEF,
             tensorboard_log=LOG_DIR,
             verbose=1,
 
