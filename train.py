@@ -66,7 +66,7 @@ def main():
     # model = PPO("MultiInputPolicy",
     model = PPO("CnnPolicy",
             # normalize_images=False,
-            policy_kwargs=dict(normalize_images=False)
+            policy_kwargs=dict(normalize_images=False),
             env=env,
             learning_rate=LEARNING_RATE,
 
