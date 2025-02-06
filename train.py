@@ -7,6 +7,7 @@ from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
 
+from stable_baselines3.common.env_checker import check_env
 from metroid_env import MetroidEnv
 
 # Determines length of environment vecotrs
@@ -42,12 +43,17 @@ def main():
         return gym.make("MetroidII")
 
 
-    
+    # Check env
+    # print("Checking ENV")
+    # env = make_env() 
+    # check_env(env)
+    # print("Done checking env!")
 
     env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
     eval_env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
     # env = make_env()
     # eval_env = make_env()
+
 
     checkpoint_callback = CheckpointCallback(save_freq=CHECKPOINT_FREQUENCY,
                                              save_path=LOG_DIR,
@@ -65,7 +71,6 @@ def main():
 
     # model = PPO("MultiInputPolicy",
     model = PPO("CnnPolicy",
-            # normalize_images=False,
             policy_kwargs=dict(normalize_images=False),
             env=env,
             learning_rate=LEARNING_RATE,
