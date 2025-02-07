@@ -29,7 +29,7 @@ done
 
 `view.py` is the script used to view a training result.
 
-## Helpful info
+## Timing info
 
 Through testing and some math, roughly 216,000 iterations correspond to an hour
 of "real life" game time. This was calculated by measuring 1000 iteration's

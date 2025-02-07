@@ -16,7 +16,11 @@ NUM_ENVS = 6
 
 # Roughly an hour of "gameplay" if doing real time
 # Timestep count for one environment
-TIMESTEPS = 200000
+HOUR_IF_REALTIME = 200000
+
+# How many times we call "step"
+TIMESTEPS = HOUR_IF_REALTIME * 4
+
 LEARNING_RATE = 2.5e-4
 ENT_COEF = 0.01
 # realisticly it should be a lot smaller
@@ -24,14 +28,15 @@ ENT_COEF = 0.01
 EPOCH_COUNT = 100
 GAMMA = 0.997
 
-# across all environments 
-TOTAL_TIMESTEPS = TIMESTEPS * NUM_ENVS * 100
+# across all environments, how many times we call "step
+TOTAL_TIMESTEPS = (TIMESTEPS * NUM_ENVS) * 100
 
 CHECKPOINT_FREQUENCY = TIMESTEPS//4
-EVAL_FREQUENCY = TIMESTEPS//5
+EVAL_FREQUENCY = TIMESTEPS//8
 
 # How many steps until we do a learning update
-TRAIN_STEPS_BATCH = TIMESTEPS // 15
+TRAIN_STEPS_BATCH = TIMESTEPS // 20
+
 # True batch size to use when running multiple envs
 BATCH_SIZE = int(TRAIN_STEPS_BATCH * NUM_ENVS)
 
@@ -44,11 +49,10 @@ def main():
 
 
     # Check env
-    print("Checking ENV")
+    print("\n\n\nChecking ENV")
     env = make_env() 
     check_env(env)
-    print("Done checking env!")
-    input("Holding...")
+    print("\n\nDone checking env!\n\n")
 
     env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
     eval_env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
@@ -56,23 +60,26 @@ def main():
     # eval_env = make_env()
 
 
+    # Take some "checkpoints" of the model as we train
     checkpoint_callback = CheckpointCallback(save_freq=CHECKPOINT_FREQUENCY,
                                              save_path=LOG_DIR,
                                              name_prefix="metroid")
 
 
-    eval_callback = EvalCallback(eval_env, best_model_save_path=LOG_DIR,
-                             log_path=LOG_DIR, eval_freq=EVAL_FREQUENCY,
-                             deterministic=False, render=False)
+    # How often we evaluate the model
+    eval_callback = EvalCallback(eval_env, 
+                                 best_model_save_path=LOG_DIR,
+                                 log_path=LOG_DIR,
+                                 eval_freq=EVAL_FREQUENCY,
+                                 deterministic=False,
+                                 render=False)
 
     # callbacks = [checkpoint_callback, tb_callback, eval_callback]
     callbacks = [checkpoint_callback, eval_callback]
 
-
-
-    # model = PPO("MultiInputPolicy",
+    
     # TODO should probably make this work with CNN
-    model = PPO("MlpPolicy",
+    model = PPO("CnnPolicy",
             # policy_kwargs=dict(normalize_images=False),
             env=env,
             learning_rate=LEARNING_RATE,

@@ -43,7 +43,7 @@ actions = [
 # observation_space = spaces.Box(low=0, high=254, shape=(144,160), dtype=np.int8)
 # observation_space = spaces.Box(low=0, high=255, shape=(144,160), dtype=np.uint8)
 # observation_space = spaces.Box(low=0, high=255, shape=(72,80), dtype=np.uint8)
-observation_space = spaces.Box(low=0, high=255, shape=(72, 80), dtype=np.uint8)
+observation_space = spaces.Box(low=0, high=255, shape=(72, 80, 1), dtype=np.uint8)
 
 
 # BY DEFAULT USES THESE PARAMETERS 
@@ -59,9 +59,11 @@ ROM_PATH = "MetroidII.gb"
 class MetroidEnv(gym.Env):
 
     # Reward for hitting a new coordinate
-    exploration_reward = 1
+    exploration_reward_factor = 1
+
     # Reward for NOT hitting a new coordinate
-    no_exploration_reward = -1
+    # Very small, but non-zero
+    no_exploration_reward = -0.001
     
     # all pixels vals are integer divided by this value to make the reward
     # slightly more sparse, and decrese the amount of unique pixel values we
@@ -74,13 +76,6 @@ class MetroidEnv(gym.Env):
     # for HP and missiles, new is smaller -> BAD, so + weight
     # delta = new - old
     # reward = weight * delta
-    reward_weights = {
-            'hp': 5,                
-            'missiles': 1,        
-            'missile_capacity': 2,
-            'upgrades': 10,   # HUGE deal if we get a new upgrade
-            'gmc': -5,  # if GMC decreases, delta is negative
-    }
 
     # emulation_speed_factor overrides the "debug" emulation speed
     def __init__(self, rom_path=ROM_PATH, emulation_speed_factor=0, debug=False,
@@ -128,6 +123,10 @@ class MetroidEnv(gym.Env):
 
         # cast to grayscale
         gray = cv2.cvtColor(smaller, cv2.COLOR_RGB2GRAY)
+
+        # To make Gymnasium happy
+        gray = np.reshape(gray, gray.shape + (1,))
+
 
         # TODO may have to flatten this or change it to work with CNN policy
         return gray
@@ -201,8 +200,24 @@ class MetroidEnv(gym.Env):
     def _calculate_reward(self, mem_state):
         reward = self._calc_and_update_exploration()
         # iterate through observations, and "weights"
-        for k,v in mem_state.items():
-            reward += self.reward_weights[k] * v
+
+        # TODO I could break these into smaller functions
+
+        # reward penalized as num missles missing
+        # If all missiles present, this is 0
+        # If no missiles present, this is 1
+        missingMissilePercent = 1 - (mem_state['missiles'] / mem_state['missile_capacity'])
+        reward -= missingMissilePercent
+
+        # TODO fix this to use real max health, this is a temp hack fix just so
+        # I can train something tonight
+        missingHealth = 99 - mem_state['hp']
+        reward -= missingHealth
+
+        # TODO implement metroid killing and upgrade reward
+        # There's no chance the agent gets that far as is though, so I'm not
+        # worried about that yet
+
         return reward
 
     def _calc_and_update_exploration(self):
@@ -226,7 +241,7 @@ class MetroidEnv(gym.Env):
             # We've been here before
             return self.no_exploration_reward
         self.explored.add(coordData)
-        return self.exploration_reward
+        return self.exploration_reward_factor * len(self.explored)
 
     def reset(self, **kwargs):
         self.pyboy.game_wrapper.reset_game()
@@ -251,7 +266,6 @@ class MetroidEnv(gym.Env):
 # From my math, 200_000 is about a hour in real time
 # This was done with a 2 timestep
 
-print("REGISTERING METROID ENV")
 gym.register(
         id="MetroidII", 
         entry_point=MetroidEnv,
