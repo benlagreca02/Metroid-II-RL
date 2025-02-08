@@ -59,11 +59,11 @@ ROM_PATH = "MetroidII.gb"
 class MetroidEnv(gym.Env):
 
     # Reward for hitting a new coordinate
-    exploration_reward_factor = 1
+    exploration_reward_factor = 2
 
     # Reward for NOT hitting a new coordinate
     # Very small, but non-zero
-    no_exploration_reward = -0.001
+    no_exploration_reward = -0.005
     
     # all pixels vals are integer divided by this value to make the reward
     # slightly more sparse, and decrese the amount of unique pixel values we
@@ -104,7 +104,7 @@ class MetroidEnv(gym.Env):
 
         self.is_render_mode_human = True if render_mode == 'human' else False
 
-        self.game_state_old = self._get_current_mem_state_dict()
+        # self.game_state_old = self._get_current_mem_state_dict()
 
         self.explored = set()
         self.explored.add(self.getAllCoordData())
@@ -124,11 +124,9 @@ class MetroidEnv(gym.Env):
         # cast to grayscale
         gray = cv2.cvtColor(smaller, cv2.COLOR_RGB2GRAY)
 
-        # To make Gymnasium happy
+        # To make Gymnasium happy, must be 3d with 1 val in z dim
         gray = np.reshape(gray, gray.shape + (1,))
 
-
-        # TODO may have to flatten this or change it to work with CNN policy
         return gray
 
 
@@ -202,17 +200,19 @@ class MetroidEnv(gym.Env):
         # iterate through observations, and "weights"
 
         # TODO I could break these into smaller functions
+        missileWeight = 2
+        healthWeight = 1
 
         # reward penalized as num missles missing
         # If all missiles present, this is 0
         # If no missiles present, this is 1
         missingMissilePercent = 1 - (mem_state['missiles'] / mem_state['missile_capacity'])
-        reward -= missingMissilePercent
+        reward -= (missileWeight*missingMissilePercent)
 
         # TODO fix this to use real max health, this is a temp hack fix just so
         # I can train something tonight
-        missingHealth = 99 - mem_state['hp']
-        reward -= missingHealth
+        missingHealth = (99 - mem_state['hp'])
+        reward -= healthWeight*missingHealth
 
         # TODO implement metroid killing and upgrade reward
         # There's no chance the agent gets that far as is though, so I'm not

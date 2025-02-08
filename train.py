@@ -12,33 +12,35 @@ from metroid_env import MetroidEnv
 
 # Determines length of environment vecotrs
 # Also multiplies timesteps
-NUM_ENVS = 6
+NUM_ENVS = 8
 
 # Roughly an hour of "gameplay" if doing real time
 # Timestep count for one environment
 HOUR_IF_REALTIME = 200000
 
 # How many times we call "step"
+# THIS PLAYS FOR "FOUR HOURS" in human time 
 TIMESTEPS = HOUR_IF_REALTIME * 4
 
-LEARNING_RATE = 2.5e-4
+LEARNING_RATE = 3e-4
 ENT_COEF = 0.01
 # realisticly it should be a lot smaller
 # This makes sure training doesn't stop in the middle of the night
 EPOCH_COUNT = 100
-GAMMA = 0.997
+GAMMA = 0.998
 
 # across all environments, how many times we call "step
 TOTAL_TIMESTEPS = (TIMESTEPS * NUM_ENVS) * 100
 
-CHECKPOINT_FREQUENCY = TIMESTEPS//4
-EVAL_FREQUENCY = TIMESTEPS//8
+CHECKPOINT_FREQUENCY = TIMESTEPS//25
+EVAL_FREQUENCY = TIMESTEPS//20
 
 # How many steps until we do a learning update
-TRAIN_STEPS_BATCH = TIMESTEPS // 20
+TRAIN_STEPS_BATCH = 256
 
 # True batch size to use when running multiple envs
 BATCH_SIZE = int(TRAIN_STEPS_BATCH * NUM_ENVS)
+
 
 LOG_DIR =  './log/'
 
@@ -48,17 +50,17 @@ def main():
         return gym.make("MetroidII")
 
 
-    # Check env
-    print("\n\n\nChecking ENV")
-    env = make_env() 
-    check_env(env)
-    print("\n\nDone checking env!\n\n")
 
     env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
     eval_env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
     # env = make_env()
     # eval_env = make_env()
 
+    # Check env
+    # print("\n\n\nChecking ENV")
+    # env = make_env() 
+    # check_env(env)
+    # print("\n\nDone checking env!\n\n")
 
     # Take some "checkpoints" of the model as we train
     checkpoint_callback = CheckpointCallback(save_freq=CHECKPOINT_FREQUENCY,
