@@ -103,7 +103,7 @@ class MetroidEnv(gym.Env):
 
         self.is_render_mode_human = True if render_mode == 'human' else False
 
-        # self.game_state_old = self._get_current_mem_state_dict()
+        # self.game_state_old = self._get_mem_state_dict()
 
         self.explored = set()
         self.explored.add(self.getAllCoordData())
@@ -143,15 +143,15 @@ class MetroidEnv(gym.Env):
         y = self.pyboy.game_wrapper.y_pos_pixels
         return x,y
     
-    def _get_current_mem_state_dict(self):
+    def _get_mem_state_dict(self):
         # GMC is global metroid count
         vals_of_interest = {
-                'hp': self.pyboy.game_wrapper.current_hp,
+                'hp': self.pyboy.game_wrapper.hp,
                 # May be wrong, so ignoring e-tanks for now
-                # 'e_tanks': self.pyboy.game_wrapper.current_e_tanks
-                'missiles': self.pyboy.game_wrapper.current_missiles,
-                'missile_capacity': self.pyboy.game_wrapper.current_missile_capacity,
-                'upgrades': self.pyboy.game_wrapper.current_major_upgrades,
+                # 'e_tanks': self.pyboy.game_wrapper.e_tanks
+                'missiles': self.pyboy.game_wrapper.missiles,
+                'missile_capacity': self.pyboy.game_wrapper.missile_capacity,
+                'upgrades': self.pyboy.game_wrapper.major_upgrades,
                 'gmc': self.pyboy.game_wrapper.global_metroid_count,
         }
         return vals_of_interest
@@ -186,7 +186,7 @@ class MetroidEnv(gym.Env):
         truncated = False
 
         # fetch new mem state for reward calculation
-        curr_game_state = self._get_current_mem_state_dict() 
+        curr_game_state = self._get_mem_state_dict() 
         reward = self._calculate_reward(curr_game_state)
 
         self.game_state_old = curr_game_state
