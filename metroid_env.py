@@ -40,9 +40,8 @@ actions = [
 ]
 
 
-# observation_space = spaces.Box(low=0, high=254, shape=(144,160), dtype=np.int8)
-# observation_space = spaces.Box(low=0, high=255, shape=(144,160), dtype=np.uint8)
-# observation_space = spaces.Box(low=0, high=255, shape=(72,80), dtype=np.uint8)
+# This would be observation space if using whole screen
+# observation_space = spaces.Box(low=0, high=254, shape=(144,160, 1), dtype=np.int8)
 observation_space = spaces.Box(low=0, high=255, shape=(72, 80, 1), dtype=np.uint8)
 
 
@@ -243,12 +242,12 @@ class MetroidEnv(gym.Env):
         self.explored.add(coordData)
         return self.exploration_reward_factor * len(self.explored)
 
+
     def reset(self, **kwargs):
         self.pyboy.game_wrapper.reset_game()
         observation = self._get_obs()
         info = {}
         return observation, info
-
 
 
     def render(self, mode='human'):
@@ -259,6 +258,10 @@ class MetroidEnv(gym.Env):
 
     def close(self):
         self.pyboy.stop()
+
+
+    def game_area(self):
+        return self.pyboy.game_area()
 
 
 # REGISTER THE ENVIRONMENT WITH GYMNASIUM
