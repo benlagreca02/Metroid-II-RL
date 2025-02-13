@@ -1,5 +1,5 @@
 # from pyboy import PyBoy
-
+import argparse
 import gymnasium as gym
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
@@ -37,7 +37,7 @@ GAMMA = 0.998
 TOTAL_TIMESTEPS = (TIMESTEPS * NUM_ENVS) * 100
 
 CHECKPOINT_FREQUENCY = TIMESTEPS//1000
-EVAL_FREQUENCY = TIMESTEPS//2000
+EVAL_FREQUENCY = TIMESTEPS//4000
 
 # How many steps until we do a learning update
 TRAIN_STEPS_BATCH = 256
@@ -52,7 +52,11 @@ def main():
         # in case we want to complicate the env creation later
         return gym.make("MetroidII")
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('model_path', nargs='?', type=str, help='Path to the model to be loaded')
 
+
+    args = parser.parse_args()
 
     env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
     eval_env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
@@ -107,6 +111,12 @@ def main():
     # model = PPO('CnnPolicy', env, tensorboard_log='./ppo_tensorboard/', verbose=1)
     new_logger = configure(LOG_DIR, ["stdout", 'csv', "tensorboard"])
     model.set_logger(new_logger)
+
+    if args.model_path:
+        print(f"Loading {args.model_path}")
+        model.load(args.model_path)
+    else:
+        print("Starting training!!!")
 
     model.learn( total_timesteps=TOTAL_TIMESTEPS,
                  callback=CallbackList(callbacks),
