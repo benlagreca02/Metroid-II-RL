@@ -1,13 +1,19 @@
 # from pyboy import PyBoy
 import argparse
-import gymnasium as gym
+
+# import gymnasium as gym
+
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
-
 from stable_baselines3.common.env_checker import check_env
+
+import pufferlib
+import pufferlib.vector
+import pufferlib.emulation
+
 from metroid_env import MetroidEnv
 
 # Roughly an hour of "gameplay" if doing real time
@@ -16,7 +22,8 @@ HOUR_IF_REALTIME = 200000
 
 # Determines length of environment vecotrs
 # Also multiplies timesteps
-NUM_ENVS = 8
+# NUM_ENVS = 8
+NUM_ENVS = 1
 
 
 # How many times we call "step"
@@ -48,9 +55,6 @@ BATCH_SIZE = int(TRAIN_STEPS_BATCH * NUM_ENVS)
 LOG_DIR =  './log/'
 
 def main():
-    def make_env():
-        # in case we want to complicate the env creation later
-        return gym.make("MetroidII")
 
     parser = argparse.ArgumentParser()
     parser.add_argument('model_path', nargs='?', type=str, help='Path to the model to be loaded')
@@ -58,23 +62,27 @@ def main():
 
     args = parser.parse_args()
 
-    env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
-    eval_env = SubprocVecEnv([make_env for n in range(NUM_ENVS)])
-    # env = make_env()
-    # eval_env = make_env()
+    # 8 copies of the environment each on their own process
+    env = pufferlib.vector.make(
+            MetroidEnv,
+            num_envs=NUM_ENVS,
+            backend=pufferlib.vector.Multiprocessing)
+    
+    # evalEnv = MetroidEnv()
+    eval_env = pufferlib.vector.make(
+            MetroidEnv,
+            num_envs=NUM_ENVS,
+            backend=pufferlib.vector.Multiprocessing)
 
-    # Check env
-    # print("\n\n\nChecking ENV")
-    # env = make_env() 
-    # check_env(env)
-    # print("\n\nDone checking env!\n\n")
 
+
+    # TODO change to CleanRL implementation
     # Take some "checkpoints" of the model as we train
     checkpoint_callback = CheckpointCallback(save_freq=CHECKPOINT_FREQUENCY,
                                              save_path=LOG_DIR,
                                              name_prefix="metroid")
 
-
+    # TODO change to CleanRL implementation
     # How often we evaluate the model
     eval_callback = EvalCallback(eval_env, 
                                  best_model_save_path=LOG_DIR,
@@ -87,28 +95,23 @@ def main():
     callbacks = [checkpoint_callback, eval_callback]
 
     
-    # TODO should probably make this work with CNN
+    # TODO change to use CleanRL PPO
     model = PPO("CnnPolicy",
             # policy_kwargs=dict(normalize_images=False),
             env=env,
             learning_rate=LEARNING_RATE,
-
             # Num steps to run for each env per update
             # i.e. batch size is n_steps * n_env
             n_steps=TRAIN_STEPS_BATCH,
-
-            # Discount factor
             gamma=GAMMA,
             # Entropy coefficient for loss calculation
             ent_coef=ENT_COEF,
             tensorboard_log=LOG_DIR,
             verbose=1,
-
             batch_size=BATCH_SIZE,
             n_epochs=EPOCH_COUNT)
 
 
-    # model = PPO('CnnPolicy', env, tensorboard_log='./ppo_tensorboard/', verbose=1)
     new_logger = configure(LOG_DIR, ["stdout", 'csv', "tensorboard"])
     model.set_logger(new_logger)
 
