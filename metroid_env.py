@@ -55,21 +55,26 @@ ROM_PATH = "MetroidII.gb"
 MAX_ENV_STEPS = 400000
 
 
-class MetroidEnv(pufferlib.PufferEnv):
+# implement tile based and come up with a new one
+class MetroidEnv(pufferlib.emulation.GymnasiumPufferEnv):
 
     # emulation_speed_factor overrides the "debug" emulation speed
-    def __init__(self, 
-            
+    def __init__(self,  
             # PyBoy options
             rom_path=ROM_PATH,
             emulation_speed_factor=0,
             debug=False,
+            # TODO should probably change to use "rgb_array" render mode, since
+            # thats what its doing, then later implement the tile-based approach
             render_mode=None,
 
             # Pufferlib options
             num_to_tick=DEFAULT_NUM_TO_TICK,
             num_agents=1,
             buf=None): 
+
+        self.metadata = {'render_modes': ['human']}
+
 
         # Emulator doesn't support "half speed" unfortunately
         assert type(emulation_speed_factor) is int
@@ -78,28 +83,27 @@ class MetroidEnv(pufferlib.PufferEnv):
 
         # PyBoy emulator configuration
         self.num_to_tick = num_to_tick
-        self.render_mode = render_mode
-        self.metadata = {'render_modes': ['human']}
         win = 'SDL2' if render_mode is not None else 'null'
         self.pyboy = PyBoy(rom_path, window=win, debug=debug)
         self.pyboy.set_emulation_speed(emulation_speed_factor)
         
         # Pufferlib configuration
+        self.single_observation_space = observation_space 
         self.single_action_space = spaces.Discrete(len(actions))
-        self.single_observation_space = observation_space
         self.num_agents = num_agents
+
+        # Normal (Gymnasium) config
+        self.observation_space = observation_space
+        self.action_space = spaces.Discrete(len(actions))
 
         # the game_wrapper is a part of PyBoy
         # PyBoy auto-detects game, and determines which wrapper to use
         self.pyboy.game_wrapper.start_game()
-
         self.is_render_mode_human = True if render_mode == 'human' else False
-
         self.explored = set()
         self.explored.add(self.getAllCoordData())
-
-
-        super().__init__(buf)
+        # I think this goes in the pufferlib env file
+        # super().__init__(buf)
 
     def _get_obs(self):
         # Get an observation from environment
