@@ -11,8 +11,8 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        # TODO make pyboy a dependency
-        # Manually installed from my fork for now
+        # TODO make pyboy a dependency eventually (when my changes and the
+        # metroid wrapper get pulled in. manual install from my fork needed
         # 'pyboy<2.0.0',
         'gymnasium>=0.29.1',
         'numpy',
@@ -28,7 +28,7 @@ setup(
     # @pdubs: Put your info here
     author="Ben LaGreca",
     author_email="benlagreca02@gmail.com",
-    url="https://github.com/PufferAI/pokegym",
+    # url="https://github.com/PufferAI/pokegym",
     keywords=["Metroid II", "AI", "RL"],
     classifiers=[
         "Intended Audience :: Science/Research",

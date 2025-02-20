@@ -52,11 +52,12 @@ observation_space = spaces.Box(low=0, high=255, shape=(72, 80, 1), dtype=np.uint
 # How many frames to advance every action
 DEFAULT_NUM_TO_TICK = 4
 ROM_PATH = "MetroidII.gb"
-MAX_ENV_STEPS = 400000
+# This was used when using SB3 and gymnasium registering
+# MAX_ENV_STEPS = 400000
 
 
-# implement tile based and come up with a new one
-class MetroidEnv(pufferlib.emulation.GymnasiumPufferEnv):
+# class MetroidEnv(pufferlib.emulation.GymnasiumPufferEnv):
+class MetroidEnv(gym.Env):
 
     # emulation_speed_factor overrides the "debug" emulation speed
     def __init__(self,  
@@ -66,31 +67,34 @@ class MetroidEnv(pufferlib.emulation.GymnasiumPufferEnv):
             debug=False,
             # TODO should probably change to use "rgb_array" render mode, since
             # thats what its doing, then later implement the tile-based approach
-            render_mode=None,
+            render_mode='rgb_array',
 
             # Pufferlib options
             num_to_tick=DEFAULT_NUM_TO_TICK,
-            num_agents=1,
             buf=None): 
 
-        self.metadata = {'render_modes': ['human']}
-
+        self.metadata = {'render_modes': ['human', 'rgb_array']}
 
         # Emulator doesn't support "half speed" unfortunately
-        assert type(emulation_speed_factor) is int
-        assert type(num_to_tick) is int
-        assert render_mode is None or render_mode in self.metadata["render_modes"]
+        assert type(emulation_speed_factor) is int, "Must use integer speed factor. Pyboy doesn't support fractional speeds!"
+        assert type(num_to_tick) is int, "Must use integer frame-tick! You can't tick by half a frame you goober!"
+        assert render_mode in self.metadata["render_modes"], "Invalid render mode!"
+
+        if self.render_mode == 'human':
+            self.is_render_mode_human = True
+        else:
+            self.is_render_mode_human = False
 
         # PyBoy emulator configuration
         self.num_to_tick = num_to_tick
-        win = 'SDL2' if render_mode is not None else 'null'
+        win = 'SDL2' if render_mode == 'human' else 'null'
         self.pyboy = PyBoy(rom_path, window=win, debug=debug)
         self.pyboy.set_emulation_speed(emulation_speed_factor)
         
         # Pufferlib configuration
-        self.single_observation_space = observation_space 
-        self.single_action_space = spaces.Discrete(len(actions))
-        self.num_agents = num_agents
+        # self.single_observation_space = observation_space 
+        # self.single_action_space = spaces.Discrete(len(actions))
+        # self.num_agents = num_agents
 
         # Normal (Gymnasium) config
         self.observation_space = observation_space
@@ -102,8 +106,6 @@ class MetroidEnv(pufferlib.emulation.GymnasiumPufferEnv):
         self.is_render_mode_human = True if render_mode == 'human' else False
         self.explored = set()
         self.explored.add(self.getAllCoordData())
-        # I think this goes in the pufferlib env file
-        # super().__init__(buf)
 
     def _get_obs(self):
         # Get an observation from environment
@@ -174,7 +176,8 @@ class MetroidEnv(pufferlib.emulation.GymnasiumPufferEnv):
 
         self.pyboy.tick(self.num_to_tick, self.is_render_mode_human)
 
-        observation = self._get_obs()
+        # Cache, so we don't fetch twice in render() function
+        self.obs = self._get_obs()
 
         # PyBoy Cython weirdness makes "game_over()" an int 
         done = False if self.pyboy.game_wrapper.game_over() == 0 else True
@@ -185,7 +188,7 @@ class MetroidEnv(pufferlib.emulation.GymnasiumPufferEnv):
         # Calculate the reward
         reward = self._calculate_reward()
 
-        return observation, reward, done, truncated, info
+        return self.obs, reward, done, truncated, info
 
 
 
@@ -263,16 +266,19 @@ class MetroidEnv(pufferlib.emulation.GymnasiumPufferEnv):
 
     def reset(self, **kwargs):
         self.pyboy.game_wrapper.reset_game()
-        observation = self._get_obs()
+        self.obs = self._get_obs()
         info = {}
-        return observation, info
+        return self.obs, info
 
 
-    def render(self, mode='human'):
-        if mode == 'human':
-            self.is_render_mode_human = True
-        else:
-            self.is_render_mode_human = False
+    def render(self):
+        if self.render_mode == 'human':
+            # We are already showing the screen!
+            pass
+        elif self.render_mode == 'rgb_array':
+            if self.obs == None:
+                self.obs = self._get_obs()
+            return self.obs
 
     def close(self):
         self.pyboy.stop()
