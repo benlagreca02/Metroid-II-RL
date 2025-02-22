@@ -6,7 +6,7 @@ from pyboy import PyBoy
 import gymnasium as gym
 from gymnasium import spaces
 
-import pufferlib
+# import pufferlib
 
 import numpy as np
 import cv2
@@ -52,8 +52,8 @@ observation_space = spaces.Box(low=0, high=255, shape=(72, 80, 1), dtype=np.uint
 # How many frames to advance every action
 DEFAULT_NUM_TO_TICK = 4
 ROM_PATH = "MetroidII.gb"
-# This was used when using SB3 and gymnasium registering
-# MAX_ENV_STEPS = 400000
+# episode ends forcefully after this many steps
+# MAX_EPISODE_STEPS = 400000
 
 
 # class MetroidEnv(pufferlib.emulation.GymnasiumPufferEnv):
@@ -65,8 +65,6 @@ class MetroidEnv(gym.Env):
             rom_path=ROM_PATH,
             emulation_speed_factor=0,
             debug=False,
-            # TODO should probably change to use "rgb_array" render mode, since
-            # thats what its doing, then later implement the tile-based approach
             render_mode='rgb_array',
 
             # Pufferlib options
@@ -295,6 +293,6 @@ gym.register(
         id="MetroidII", 
         entry_point=MetroidEnv,
         nondeterministic=True,    # randomness is present in the game
-        max_episode_steps=MAX_ENV_STEPS,
+        max_episode_steps=MAX_EPISODE_STEPS,
 )
 '''

@@ -48,6 +48,7 @@ and CleanRL soon. I'll also be heavily modifying the environment to give better
 observations like missiles, health, etc.
 
 ### Agent Milestones
+- [x] explore starting area
 - [ ] Stop shooting randomly and "spazzing out"
 - [ ] Get out of starting area relatively quickly
 - [ ] Avoid/kill enemies in starting area
@@ -56,7 +57,8 @@ observations like missiles, health, etc.
 - [ ] Kill first Metroid
 
 ### Model Training
-- [ ] Change to CleanRL/Pufferlib approach
+- [ ] Add frame stacking to observation space
+- [ ] Change to Pufferlib native environment, rather than gym wrapper (?)
 - [ ] improve  observations of environments to be tiles (will train faster, but large undertaking)
 - [x] Define a baseline test reward function
 - [x] make observations of environments pixels of screen
