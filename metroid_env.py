@@ -44,9 +44,17 @@ actions = [
 
 # This would be observation space if using whole screen
 # observation_space = spaces.Box(low=0, high=254, shape=(144,160, 1), dtype=np.int8)
+# Half resolution
+# observation_space = spaces.Box(low=0, high=255, shape=(72, 80, 1), dtype=np.uint8)
 
-# Will eventually update this to use game area (would be much smaller)
-observation_space = spaces.Box(low=0, high=255, shape=(72, 80, 1), dtype=np.uint8)
+# Each tile is 16 bytes: 8x8 with 2 bits/pixel
+TILE_NUM_BYTES = 16
+
+DIGEST_SIZE_BYTES = 2
+DIGEST_DTYPE = np.uint16
+
+# Tile based hashing!
+observation_space = spaces.Box(low=0, high=65535, shape=(17,20,1), dtype=np.uint16)
 
 
 # How many frames to advance every action
@@ -71,7 +79,7 @@ class MetroidEnv(gym.Env):
             num_to_tick=DEFAULT_NUM_TO_TICK,
             buf=None): 
 
-        self.metadata = {'render_modes': ['human', 'rgb_array']}
+        self.metadata = {'render_modes': ['human', 'rgb_array', 'tiles']}
 
         # Emulator doesn't support "half speed" unfortunately
         assert type(emulation_speed_factor) is int, "Must use integer speed factor. Pyboy doesn't support fractional speeds!"
@@ -102,28 +110,43 @@ class MetroidEnv(gym.Env):
         # PyBoy auto-detects game, and determines which wrapper to use
         self.pyboy.game_wrapper.start_game()
         self.is_render_mode_human = True if render_mode == 'human' else False
+
         self.explored = set()
-        self.explored.add(self.getAllCoordData())
 
     def _get_obs(self):
         # Get an observation from environment
-        # Used in step, and reset, so it reduces code and makes it much cleaner
-        # to do this in its own function
+        # Used in step, and reset
         
-        # returns RGBA
-        rgb = self.pyboy.screen.ndarray[:, :, :3]
+        # Get the ID of all the tiles
+        # 17x20 IDs which can be used to get VRAM addresses
+        tile_ids = self.pyboy.game_area()
+         
+        # 17x20 
+        digest_array = np.zeros(tile_ids.shape, dtype=DIGEST_DTYPE)
 
-        # reduce by 50%, less input data -> faster training
-        h, w = rgb.shape[:2]
-        smaller = cv2.resize(rgb, (w//2, h//2))
+        # FOR EACH TILE ON THE SCREEN
+        for i in range(tile_ids.shape[0]):
+            for j in range(tile_ids.shape[1]):
+                # What address in VRAM is the tile stored at
+                vram_addr = self.pyboy.get_tile(tile_ids[i,j]).data_address
 
-        # cast to grayscale
-        gray = cv2.cvtColor(smaller, cv2.COLOR_RGB2GRAY)
+                # Read the 16 bytes of data for the tile
+                tile_byte_arr = self.pyboy.memory[vram_addr:vram_addr+16]
+                
+                # Each 8x8 tile is 2 bits per pixel (four possible color
+                # selectinos) That gives 128 bits per tile
 
-        # To make Gymnasium happy, must be 3d with 1 val in z dim
-        gray = np.reshape(gray, gray.shape + (1,))
+                # 128 bits per tile -> 16 bytes
 
-        return gray
+                # Crush the 16 byte value into a 2 byte value using XORs
+                # i.e. crushing 128 bits to 16 bits
+                
+                # 16 bytes per tile
+                for d in range(TILE_NUM_BYTES//DIGEST_SIZE_BYTES):
+                    curr = d*DIGEST_SIZE_BYTES
+                    digest_array[i,j] ^= int.from_bytes(tile_byte_arr[curr:curr+DIGEST_SIZE_BYTES], byteorder='big')
+
+        return digest_array
 
 
     def getAllCoordData(self):
@@ -266,24 +289,30 @@ class MetroidEnv(gym.Env):
         self.pyboy.game_wrapper.reset_game()
         self.obs = self._get_obs()
         info = {}
-        return self.obs, info
 
+        self.explored = set()
+        self.explored.add(self.getAllCoordData())
+        return self.obs, info
 
     def render(self):
         if self.render_mode == 'human':
             # We are already showing the screen!
             pass
-        elif self.render_mode == 'rgb_array':
+        elif self.render_mode == 'tiles':
             if self.obs == None:
                 self.obs = self._get_obs()
             return self.obs
+        elif self.render_mode =='rgb_array':
+            # Should be easy enough
+            raise NotImplementedError
 
     def close(self):
         self.pyboy.stop()
 
 
-    def game_area(self):
-        return self.pyboy.game_area()
+    # Mainly for debugging
+    # def game_area(self):
+        # return self.pyboy.game_area()
 
 
 # REGISTER THE ENVIRONMENT WITH GYMNASIUM

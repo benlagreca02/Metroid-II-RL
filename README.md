@@ -56,10 +56,11 @@ observations like missiles, health, etc.
 - [ ] Find first Metroid
 - [ ] Kill first Metroid
 
-### Model Training
-- [ ] Add frame stacking to observation space
+### Model
+- [x] Add frame stacking to observation space (Added LSTM instead)
+- [x] improve  observations of environments to be tiles, rather than pixels
+- [ ] Change action space so agent can hold buttons (SML code has simmilar)
 - [ ] Change to Pufferlib native environment, rather than gym wrapper (?)
-- [ ] improve  observations of environments to be tiles (will train faster, but large undertaking)
 - [x] Define a baseline test reward function
 - [x] make observations of environments pixels of screen
 - [x] Write simple exploration function using game coordinate hashing

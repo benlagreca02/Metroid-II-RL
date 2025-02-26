@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument('-a', '--area', action='store_true', help='Print game area')
     parser.add_argument('-d', '--debug', action='store_true', help='show pyboy debug windows')
     parser.add_argument('-c', '--coords', action='store_true', help='Print coordinate values (Pixels and Area)')
+    parser.add_argument('-o', '--observation', action='store_true', help='Print observation space')
     
     args = parser.parse_args()
     
@@ -23,6 +24,9 @@ if __name__ == "__main__":
 
     if args.coords:
         print("Printing coordinates of samus")
+
+    if args.observation:
+        print("Printing observation space")
 
 
     # TODO move these back up to the top when done prototyping with path loading
@@ -50,6 +54,9 @@ if __name__ == "__main__":
     # Try catch is a little redundant, but this makes it quit a lot faster and
     # more reliably
 
+    import numpy as np
+    np.set_printoptions(linewidth=np.inf)
+    
     while True:
         # action, _states = model.predict(obs)
         action, _states = action_getter(obs)
@@ -58,5 +65,7 @@ if __name__ == "__main__":
             print(f"AREA: \n{env.game_area()}")
         if args.coords:
             print(f"{env.getAllCoordData()}")
+        if args.observation:
+            print(f"\n{obs}")
 
 
