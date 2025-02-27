@@ -103,7 +103,8 @@ DIGEST_SIZE_BYTES = 2
 DIGEST_DTYPE = np.uint16
 
 # Hashing of Tile based observations!
-observation_space = spaces.Box(low=0, high=65535, shape=(17,20,1), dtype=np.uint16)
+# observation_space = spaces.Box(low=0, high=65535, shape=(17,20,1), dtype=DIGEST_DTYPE)
+observation_space = spaces.Box(low=0, high=65534, shape=(17,20,1), dtype=DIGEST_DTYPE)
 
 
 # How many frames to advance every action
@@ -178,8 +179,8 @@ class MetroidEnv(gym.Env):
         # 17x20 IDs which can be used to get VRAM addresses
         tile_ids = self.pyboy.game_area()
          
-        # 17x20 
-        digest_array = np.zeros(tile_ids.shape, dtype=DIGEST_DTYPE)
+        # 17x20x1 !!! must be x1!!!!!
+        digest_array = np.zeros((*tile_ids.shape, 1), dtype=DIGEST_DTYPE)
 
         # FOR EACH TILE ON THE SCREEN
         for i in range(tile_ids.shape[0]):
@@ -201,7 +202,11 @@ class MetroidEnv(gym.Env):
                 # 16 bytes per tile
                 for d in range(TILE_NUM_BYTES//DIGEST_SIZE_BYTES):
                     curr = d*DIGEST_SIZE_BYTES
-                    digest_array[i,j] ^= int.from_bytes(tile_byte_arr[curr:curr+DIGEST_SIZE_BYTES], byteorder='big')
+                    # convert from python ints to array of np.uint8's
+                    np_byte_arr = np.array(tile_byte_arr[curr:curr+DIGEST_SIZE_BYTES], dtype=np.uint8)
+
+                    digest_array[i,j] ^= np_byte_arr.view(DIGEST_DTYPE)
+                    # digest_array[i,j] ^= np.frombuffer(np_byte_arr, dtype=DIGEST_DTYPE)
 
         return digest_array
 
