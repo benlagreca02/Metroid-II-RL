@@ -244,14 +244,10 @@ class MetroidEnv(gym.Env):
     def step(self, action_index):
         assert self.action_space.contains(action_index), "%r (%s) invalid" % (action_index, type(action_index))
 
-        print("=============================")
-        print(f"action index: {action_index}")
         action = ACTIONS[action_index]
-        print(f"action (list of press events): {action}")
 
         # get buttons currently being held
         holding = [b for b in self._currently_held if self._currently_held[b]]
-        print(f"holding: {holding}")
 
         # Release buttons we don't need to press anymore
         for held in holding:
