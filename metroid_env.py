@@ -1,6 +1,7 @@
 # This code is from the pyboy example for how to create a gymnasium environment
 import sys
 from pyboy import PyBoy
+from pyboy.utils import WindowEvent
 
 # Adopted from https://github.com/NicoleFaye/PyBoy/blob/rl-test/PokemonPinballEnv.py
 import gymnasium as gym
@@ -16,31 +17,79 @@ import cv2
 # to press more than one button at once for metroid
 
 # A is jump, B is shoot
-actions = [
-        '',
-        ['a'], 
-        ['b'], 
-        ['left'],
-        ['right'],
-        ['up'],
-        ['down'],
-        # never need to press select with anything else, unless you REALLY
-        # wanted to be able to switch weapons while moving, but that shouldn't
-        # be necessary
-        ['select'],  
 
-        # Move and shoot combos, very necessary
-        ['left', 'b'],       
-        ['right', 'b'],       
-        ['up', 'b'],       
-        ['up', 'right', 'b'],  # aim up, walk right
-        ['up', 'left',  'b'],  # aim up, walk left
+# Thanks to capnspacehook for action space
+NOP = [WindowEvent.PASS]
+SHOOT = [WindowEvent.PRESS_BUTTON_A]
+JUMP = [WindowEvent.PRESS_BUTTON_B]
 
-        # Spin jump, for screw attack
-        ['a', 'right'],
-        ['a', 'left']
+UP = [WindowEvent.PRESS_ARROW_UP]
+DOWN = [WindowEvent.PRESS_ARROW_DOWN]
+LEFT = [WindowEvent.PRESS_ARROW_LEFT]
+RIGHT = [WindowEvent.PRESS_ARROW_RIGHT]
+
+SWITCH = [WindowEvent.PRESS_BUTTON_SELECT]
+
+# "Screw attack", jump and move to the side
+JUMP_LEFT = [*JUMP, *LEFT]
+JUMP_RIGHT = [*JUMP, *RIGHT]
+
+# Run and shoot
+SHOOT_LEFT = [*SHOOT, *LEFT]
+SHOOT_RIGHT = [*SHOOT, *RIGHT]
+
+# shoot upwards, and move while shooting upwards
+SHOOT_UP = [*SHOOT, *UP]
+SHOOT_UP_RIGHT = [*SHOOT, *UP, *RIGHT]
+SHOOT_UP_LEFT = [*SHOOT, *UP, *LEFT]
+
+#  VERY necessary for getting through vertical shafts where tiles need to be
+#  shot
+SHOOT_DOWN = [*SHOOT, *DOWN]
+
+ACTIONS = [
+        NOP,
+        SHOOT,
+        JUMP,
+        UP,
+        DOWN,
+        LEFT,
+        RIGHT,
+        SWITCH,
+        JUMP_LEFT,
+        JUMP_RIGHT,
+        SHOOT_LEFT,
+        SHOOT_RIGHT,
+        SHOOT_UP,
+        SHOOT_UP_RIGHT,
+        SHOOT_UP_LEFT,
+        SHOOT_DOWN
 ]
 
+# All possible buttons "on hardware"
+BUTTONS = [
+    WindowEvent.PRESS_ARROW_UP,
+    WindowEvent.PRESS_ARROW_DOWN,
+    WindowEvent.PRESS_ARROW_RIGHT,
+    WindowEvent.PRESS_ARROW_LEFT,
+    WindowEvent.PRESS_BUTTON_A,
+    WindowEvent.PRESS_BUTTON_B,
+    WindowEvent.PRESS_BUTTON_SELECT
+]
+
+RELEASE_BUTTONS = [
+    WindowEvent.RELEASE_ARROW_UP,
+    WindowEvent.RELEASE_ARROW_DOWN,
+    WindowEvent.RELEASE_ARROW_RIGHT,
+    WindowEvent.RELEASE_ARROW_LEFT,
+    WindowEvent.RELEASE_BUTTON_A,
+    WindowEvent.RELEASE_BUTTON_B,
+    WindowEvent.RELEASE_BUTTON_SELECT
+]
+
+# Given a button press, get the "release" version of it
+# ex: release_a = RELEASE_BUTTON_LOOKUP[press_a]
+RELEASE_BUTTON_LOOKUP = {button: r_button for button, r_button in zip(BUTTONS, RELEASE_BUTTONS)}
 
 # This would be observation space if using whole screen
 # observation_space = spaces.Box(low=0, high=254, shape=(144,160, 1), dtype=np.int8)
@@ -53,16 +102,20 @@ TILE_NUM_BYTES = 16
 DIGEST_SIZE_BYTES = 2
 DIGEST_DTYPE = np.uint16
 
-# Tile based hashing!
+# Hashing of Tile based observations!
 observation_space = spaces.Box(low=0, high=65535, shape=(17,20,1), dtype=np.uint16)
 
 
 # How many frames to advance every action
+# 1 = every single frame
+# Frame skipping
 DEFAULT_NUM_TO_TICK = 4
+
 ROM_PATH = "MetroidII.gb"
+
+# Used when registering with gymnasium
 # episode ends forcefully after this many steps
 # MAX_EPISODE_STEPS = 400000
-
 
 # class MetroidEnv(pufferlib.emulation.GymnasiumPufferEnv):
 class MetroidEnv(gym.Env):
@@ -104,7 +157,7 @@ class MetroidEnv(gym.Env):
 
         # Normal (Gymnasium) config
         self.observation_space = observation_space
-        self.action_space = spaces.Discrete(len(actions))
+        self.action_space = spaces.Discrete(len(ACTIONS))
 
         # the game_wrapper is a part of PyBoy
         # PyBoy auto-detects game, and determines which wrapper to use
@@ -112,6 +165,10 @@ class MetroidEnv(gym.Env):
         self.is_render_mode_human = True if render_mode == 'human' else False
 
         self.explored = set()
+        # dict of buttons, and True/False for if they're being held or not
+        self._currently_held = {button: False for button in BUTTONS}
+
+        # self._release_button = {button: r_button for button, r_button in 
 
     def _get_obs(self):
         # Get an observation from environment
@@ -184,16 +241,37 @@ class MetroidEnv(gym.Env):
 
 
 
-    def step(self, action):
-        assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
+    def step(self, action_index):
+        assert self.action_space.contains(action_index), "%r (%s) invalid" % (action_index, type(action_index))
 
-        # DO THE ACTION
-        if action == 0:
-            pass
-        else:
-            # Press the button(s) for this action
-            for a in actions[action]:
-                self.pyboy.button(a)
+        print("=============================")
+        print(f"action index: {action_index}")
+        action = ACTIONS[action_index]
+        print(f"action (list of press events): {action}")
+
+        # get buttons currently being held
+        holding = [b for b in self._currently_held if self._currently_held[b]]
+        print(f"holding: {holding}")
+
+        # Release buttons we don't need to press anymore
+        for held in holding:
+            # If the new action doesn't want us to press the button anymore
+            if held not in action:
+                release = RELEASE_BUTTON_LOOKUP[held]
+                self.pyboy.send_input(release)
+                self._currently_held[held] = False
+
+        # Press buttons we need to press now
+        for button in action:
+            # NOP is a list, continaing just the PASS action, which isn't a
+            # button we can "press"
+            if button in NOP:
+                continue
+            # Press the button
+            self.pyboy.send_input(button)
+            # mark it as "pressed"
+            self._currently_held[button] = True
+
 
         self.pyboy.tick(self.num_to_tick, self.is_render_mode_human)
 

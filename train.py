@@ -10,21 +10,21 @@ from stable_baselines3.common.logger import configure
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
 from stable_baselines3.common.env_checker import check_env
 
-import pufferlib
-import pufferlib.vector
-import pufferlib.emulation
+# import pufferlib
+# import pufferlib.vector
+# import pufferlib.emulation
 
 from metroid_env import MetroidEnv
 
 # Roughly an hour of "gameplay" if doing real time
 # Timestep count for one environment
+# THIS DEPENDS ON THE DEFAULT_NUM_TO_TICK
 HOUR_IF_REALTIME = 200000
 
 # Determines length of environment vecotrs
 # Also multiplies timesteps
 # NUM_ENVS = 8
 NUM_ENVS = 1
-
 
 # How many times we call "step"
 # this plays for "four hours" IN HUMAN TIME 
@@ -59,10 +59,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('model_path', nargs='?', type=str, help='Path to the model to be loaded')
 
+    raise NotImplementedError("This is half implemented with pufferlib, but I'm using pufferlib to train now! so this might be completely broken")
 
     args = parser.parse_args()
 
     # 8 copies of the environment each on their own process
+
     env = pufferlib.vector.make(
             MetroidEnv,
             num_envs=NUM_ENVS,
@@ -82,7 +84,6 @@ def main():
                                              save_path=LOG_DIR,
                                              name_prefix="metroid")
 
-    # TODO change to CleanRL implementation
     # How often we evaluate the model
     eval_callback = EvalCallback(eval_env, 
                                  best_model_save_path=LOG_DIR,
@@ -95,7 +96,6 @@ def main():
     callbacks = [checkpoint_callback, eval_callback]
 
     
-    # TODO change to use CleanRL PPO
     model = PPO("CnnPolicy",
             # policy_kwargs=dict(normalize_images=False),
             env=env,

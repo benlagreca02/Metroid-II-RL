@@ -13,6 +13,7 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--debug', action='store_true', help='show pyboy debug windows')
     parser.add_argument('-c', '--coords', action='store_true', help='Print coordinate values (Pixels and Area)')
     parser.add_argument('-o', '--observation', action='store_true', help='Print observation space')
+    parser.add_argument('-r', '--random_agent', action='store_true', help='take random actions')
     
     args = parser.parse_args()
     
@@ -28,6 +29,9 @@ if __name__ == "__main__":
     if args.observation:
         print("Printing observation space")
 
+    if args.random_agent:
+        print("Taking random actions")
+
 
     # TODO move these back up to the top when done prototyping with path loading
     import gymnasium as gym
@@ -42,9 +46,13 @@ if __name__ == "__main__":
 
     if args.model_path:
         print("Loading model from %s" % args.model_path)
+        # has no memory, use frame stacking or LSTM in future if you use SB3
+        # instead of puffer/cleanRL...
         model= PPO("CnnPolicy", env, verbose=1) 
         model = PPO.load(args.model_path)
         action_getter = lambda obs: get_action_from_model(model, obs)
+    elif args.random_agent:
+        action_getter = lambda obs: (env.action_space.sample(), None)
     else:
         print("Using human player mode")
         action_getter = lambda obs: (0,None)
