@@ -91,10 +91,6 @@ RELEASE_BUTTONS = [
 # ex: release_a = RELEASE_BUTTON_LOOKUP[press_a]
 RELEASE_BUTTON_LOOKUP = {button: r_button for button, r_button in zip(BUTTONS, RELEASE_BUTTONS)}
 
-# This would be observation space if using whole screen
-# observation_space = spaces.Box(low=0, high=254, shape=(144,160, 1), dtype=np.int8)
-# Half resolution
-# observation_space = spaces.Box(low=0, high=255, shape=(72, 80, 1), dtype=np.uint8)
 
 # Each tile is 16 bytes: 8x8 with 2 bits/pixel
 TILE_NUM_BYTES = 16
@@ -102,9 +98,14 @@ TILE_NUM_BYTES = 16
 DIGEST_SIZE_BYTES = 2
 DIGEST_DTYPE = np.uint16
 
-# Hashing of Tile based observations!
+# whole screen black and white
+# observation_space = spaces.Box(low=0, high=254, shape=(144,160, 1), dtype=np.int8)
+
+# Half resolution black and white
+observation_space = spaces.Box(low=0, high=255, shape=(72, 80, 1), dtype=np.uint8)
+
+# tile based
 # observation_space = spaces.Box(low=0, high=65535, shape=(17,20,1), dtype=DIGEST_DTYPE)
-observation_space = spaces.Box(low=0, high=65534, shape=(17,20,1), dtype=DIGEST_DTYPE)
 
 
 # How many frames to advance every action
@@ -171,7 +172,29 @@ class MetroidEnv(gym.Env):
 
         # self._release_button = {button: r_button for button, r_button in 
 
+
     def _get_obs(self):
+        # Get an observation from environment
+        # Used in step, and reset, so it reduces code and makes it much cleaner
+        # to do this in its own function
+        
+        # returns RGBA
+        rgb = self.pyboy.screen.ndarray[:, :, :3]
+
+        # reduce by 50%, less input data -> faster training
+        h, w = rgb.shape[:2]
+        smaller = cv2.resize(rgb, (w//2, h//2))
+
+        # cast to grayscale
+        gray = cv2.cvtColor(smaller, cv2.COLOR_RGB2GRAY)
+
+        # To make Gymnasium happy, must be 3d with 1 val in z dim
+        gray = np.reshape(gray, gray.shape + (1,))
+
+        return gray
+
+    # May eventually use this
+    def _get_obs_tiles(self):
         # Get an observation from environment
         # Used in step, and reset
         
