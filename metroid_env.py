@@ -93,19 +93,23 @@ RELEASE_BUTTON_LOOKUP = {button: r_button for button, r_button in zip(BUTTONS, R
 
 
 # Each tile is 16 bytes: 8x8 with 2 bits/pixel
+# Could probably remove this code eventually, but I may re-explore it eventually
 TILE_NUM_BYTES = 16
-
 DIGEST_SIZE_BYTES = 2
 DIGEST_DTYPE = np.uint16
+# tile based
+# observation_space = spaces.Box(low=0, high=65535, shape=(17,20,1), dtype=DIGEST_DTYPE)
+
+
+
+# Was 2, divides screen resolution down, less detail but faster performance
+SCREEN_FACTOR = 4
+
 
 # whole screen black and white
 # observation_space = spaces.Box(low=0, high=254, shape=(144,160, 1), dtype=np.int8)
-
-# Half resolution black and white
-observation_space = spaces.Box(low=0, high=255, shape=(72, 80, 1), dtype=np.uint8)
-
-# tile based
-# observation_space = spaces.Box(low=0, high=65535, shape=(17,20,1), dtype=DIGEST_DTYPE)
+# the -8 is to remove the bottom banner of the screen
+observation_space = spaces.Box(low=0, high=255, shape=((144-8)//SCREEN_FACTOR, (160)//SCREEN_FACTOR, 1), dtype=np.uint8)
 
 
 # How many frames to advance every action
@@ -114,6 +118,7 @@ observation_space = spaces.Box(low=0, high=255, shape=(72, 80, 1), dtype=np.uint
 DEFAULT_NUM_TO_TICK = 4
 
 ROM_PATH = "MetroidII.gb"
+
 
 # Used when registering with gymnasium
 # episode ends forcefully after this many steps
@@ -170,20 +175,20 @@ class MetroidEnv(gym.Env):
         # dict of buttons, and True/False for if they're being held or not
         self._currently_held = {button: False for button in BUTTONS}
 
-        # self._release_button = {button: r_button for button, r_button in 
-
+        self._calc_and_update_exploration()
 
     def _get_obs(self):
         # Get an observation from environment
         # Used in step, and reset, so it reduces code and makes it much cleaner
         # to do this in its own function
         
-        # returns RGBA
-        rgb = self.pyboy.screen.ndarray[:, :, :3]
+        # returns RGBA, we don't need "A" channel
+        # -8 is to remove the "bar" from the bottom of the screen
+        rgb = self.pyboy.screen.ndarray[:-8, :, :3]
 
-        # reduce by 50%, less input data -> faster training
         h, w = rgb.shape[:2]
-        smaller = cv2.resize(rgb, (w//2, h//2))
+        # less input data -> faster training
+        smaller = cv2.resize(rgb, (w//SCREEN_FACTOR, h//SCREEN_FACTOR))
 
         # cast to grayscale
         gray = cv2.cvtColor(smaller, cv2.COLOR_RGB2GRAY)
@@ -330,7 +335,9 @@ class MetroidEnv(gym.Env):
         # TODO rewrite missile award, agent may avoid missile tanks
         # given 3 missiles, and 30 capacity, currently have 10%
         # if a tank is picked up and 30 incresases, percent missiles drops,
-        # which is interpreted as a punishment
+        # which is interpreted as a punishment.
+        # Agent gets nowhere near a missle tank yet, so I'm not worrying about
+        # it yet.
 
         # reward penalized as num missles missing
         # If all missiles present, this is 0
@@ -340,13 +347,12 @@ class MetroidEnv(gym.Env):
 
         # TODO Implement a "percent health" in game wrapper, and use that
         # instead. HP in metroid goes from 99 -> 0, then wraps around to 99
-        # again.
+        # again. This needs to be double checked at some point. But agent gets
+        # nowhere near getting an E tank, so I'll worry about that later.
         missingHealth = (99 - mem_state['hp'])
         reward -= healthWeight * missingHealth
 
         # NO CHANCE the agent gets this far yet, so I'll implement these later.
-
-
         # TODO implement metroid killing reward
         # reward += weight * metroidsKilled (?)
 
@@ -356,33 +362,39 @@ class MetroidEnv(gym.Env):
 
         return reward
 
+
+
     def _calc_and_update_exploration(self):
 
         # Reward multiplier for hitting a new coordinate
         # reward = factor * len(explored)
-        exploration_reward_factor = 2
+        # May become oversaturated at some point...
+        exploration_reward_factor = 4
 
         # Reward for NOT hitting a new coordinate
         # Very small, but non-zero
         no_exploration_reward = -0.005
         
-        # Pixel value is 8 bit (0-255), This factor divides pixel value to make
-        # reward more sparse, and so we don't cache as many values. 
-        pixel_exploration_skip = 50
-
+        # Pixel value is 8 bit (0-255)
+        # Reward more frequently for vertical than horizontal
+        # jumping is hard!  walking is easy
+        # Rewarding every pixel would give way too many rewards
+        pixel_exploration_skip_x = 50
+        pixel_exploration_skip_y = 25
 
         # if these coordinates are new, cache them, give reward, and move on
         pixX, pixY = self.getCoordinatesPixels()
         # pixels move very quickly, this makes it so the reward only triggers
         # after going a direction for a while
-        pixX = pixX // pixel_exploration_skip
-        pixY = pixY // pixel_exploration_skip
+        pixX = pixX // pixel_exploration_skip_x
+        pixY = pixY // pixel_exploration_skip_y
 
         coordData = ((pixX, pixY), self.getCoordinatesArea())
 
         if coordData in self.explored:
             # We've been here before
             return no_exploration_reward
+
         self.explored.add(coordData)
         return exploration_reward_factor * len(self.explored)
 
@@ -393,24 +405,27 @@ class MetroidEnv(gym.Env):
         info = {}
 
         self.explored = set()
-        self.explored.add(self.getAllCoordData())
+        self._calc_and_update_exploration()
         return self.obs, info
 
+
     def render(self):
+        # TODO pretty sure this isn't how "render" is supposed to work
         if self.render_mode == 'human':
             # We are already showing the screen!
             pass
+        elif self.render_mode =='rgb_array':
+            # Should be easy enough
+            raise NotImplementedError
+        '''
         elif self.render_mode == 'tiles':
             if self.obs == None:
                 self.obs = self._get_obs()
             return self.obs
-        elif self.render_mode =='rgb_array':
-            # Should be easy enough
-            raise NotImplementedError
+        '''
 
     def close(self):
         self.pyboy.stop()
-
 
     # Mainly for debugging
     # def game_area(self):
@@ -418,7 +433,7 @@ class MetroidEnv(gym.Env):
 
 
 # REGISTER THE ENVIRONMENT WITH GYMNASIUM
-# Will I still do this with pufferlib?
+# I don't need to do this if using pufferlib
 '''
 gym.register(
         id="MetroidII", 

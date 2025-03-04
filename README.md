@@ -8,18 +8,17 @@ PyBoy provides "game wrappers" for various games to make AI work easier. I am
 working on implementing one for Metroid II and will eventually get my code
 pulled into the project.
 
-Currently, a pixel-based observation approach is going to be used. A tile-based
-approach would be much more effecinet, and train much faster, however currently
-
-Some incredibly simple training has been done, but its terrible unsurprisingly.
-This was mostly done to prove that the code environment worked, and some
-learning could be done.
+Currently, a pixel-based observation approach is going to be used. Due to the
+environment, a tile-based approach could be used, and that may much faster,
+however it has a lot of its own issues adn those may not be explored here.
 
 `main.py` is going to mostly be used for testing purposes.
 
 `train.py` is the script used to start a training run.
 
 `view.py` is the script used to view a training result.
+
+The `view.py` script has a lot of great args for testing modifications currently
 
 ## Tangent about timing info
 
@@ -43,24 +42,23 @@ the math for this was simply
 
 At this point, a pull request has been made for PyBoy, and many changes need to
 be made to that repository, but before I do that, I want to focus more on the
-training and AI portion of things. I'll be modifying this code to use Pufferlib
-and CleanRL soon. I'll also be heavily modifying the environment to give better
-observations like missiles, health, etc.
+training and AI portion of things.
 
 ### Agent Milestones
 - [x] explore starting area
 - [ ] Stop shooting randomly and "spazzing out"
 - [ ] Get out of starting area relatively quickly
-- [ ] Avoid/kill enemies in starting area
+- [ ] Avoid/kill enemies just outside starting area
 - [ ] Drop down through first major shaft (requires downward jump shooting) 
 - [ ] Find first Metroid
 - [ ] Kill first Metroid
 
 ### Model
+- [ ] Add missle count, "gun state", and health to observation space
+- [ ] Change to Pufferlib native environment, rather than gym wrapper (?)
 - [x] Add frame stacking to observation space (Added LSTM instead)
 - [x] improve  observations of environments to be tiles, rather than pixels
-- [ ] Change action space so agent can hold buttons (SML code has simmilar)
-- [ ] Change to Pufferlib native environment, rather than gym wrapper (?)
+- [x] Change action space so agent can hold buttons (SML code has simmilar)
 - [x] Define a baseline test reward function
 - [x] make observations of environments pixels of screen
 - [x] Write simple exploration function using game coordinate hashing
@@ -84,4 +82,4 @@ Environment is pretty much set. Its plenty good enough to start training
 
 ### Misc
 - [ ] Containerize the program to make running on other machines easy (either
-  with conda, or docker)
+  with conda, or docker potentially, or a setup script)

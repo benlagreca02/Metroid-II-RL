@@ -1,12 +1,12 @@
 # TODO write code to load and watch a model perform here
 import argparse
+from PIL import Image
 
 def get_action_from_model(model, obs):
     action, _states = model.predict(obs)
     return action, _states
         
-if __name__ == "__main__":
-
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('model_path', nargs='?', type=str, help='Path to the model to be loaded')
     parser.add_argument('-a', '--area', action='store_true', help='Print game area')
@@ -14,11 +14,17 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--coords', action='store_true', help='Print coordinate values (Pixels and Area)')
     parser.add_argument('-o', '--observation', action='store_true', help='Print observation space')
     parser.add_argument('-r', '--random_agent', action='store_true', help='take random actions')
+    parser.add_argument('-g', '--generate_image', action='store_true', help='Generates a png of the observation space')
     
     args = parser.parse_args()
     
     if not args.model_path:
-        print("No model given, using human control!")
+        print("No model given", end=' ')
+
+    if args.random_agent:
+        print("Taking random actions")
+    else:
+        print("Using human control")
 
     if args.area:
         print("Printing game area from pyboy")
@@ -29,8 +35,6 @@ if __name__ == "__main__":
     if args.observation:
         print("Printing observation space")
 
-    if args.random_agent:
-        print("Taking random actions")
 
 
     # TODO move these back up to the top when done prototyping with path loading
@@ -43,6 +47,21 @@ if __name__ == "__main__":
             emulation_speed_factor=1, # Because we want to watch it, run in "real time"
             num_to_tick= 1 if not args.model_path else DEFAULT_NUM_TO_TICK,
             debug=args.debug)
+    
+    if args.generate_image:
+        print("SAVING AN IMAGE")
+        for _ in range(10):
+            obs, rewards, dones, truncated, info = env.step(0)
+
+        h,w,dims = obs.shape
+        image_2d = obs.reshape(h, w)
+
+        # Create a PIL Image object
+        image = Image.fromarray(image_2d)
+        print(image)
+
+        image.save("obs.png")
+        return
 
     if args.model_path:
         print("Loading model from %s" % args.model_path)
@@ -77,3 +96,5 @@ if __name__ == "__main__":
             print(f"\n{obs}")
 
 
+if __name__ == "__main__":
+    main()
