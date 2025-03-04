@@ -100,25 +100,25 @@ DIGEST_DTYPE = np.uint16
 # tile based
 # observation_space = spaces.Box(low=0, high=65535, shape=(17,20,1), dtype=DIGEST_DTYPE)
 
-
-
-# Was 2, divides screen resolution down, less detail but faster performance
-SCREEN_FACTOR = 4
-
+# TODO add health, and missles to the observation space
+# Will probably be a tuple of Box and a few values
 
 # whole screen black and white
 # observation_space = spaces.Box(low=0, high=254, shape=(144,160, 1), dtype=np.int8)
+
+# Was 2, divides screen resolution down, less detail but faster performance
+SCREEN_FACTOR = 4
 # the -8 is to remove the bottom banner of the screen
 observation_space = spaces.Box(low=0, high=255, shape=((144-8)//SCREEN_FACTOR, (160)//SCREEN_FACTOR, 1), dtype=np.uint8)
-
 
 # How many frames to advance every action
 # 1 = every single frame
 # Frame skipping
 DEFAULT_NUM_TO_TICK = 4
 
+# Note if using pufferlib, must be in whatever folder you're running from.
+# example: if using demo.py, must put rom in foler alongside demo.py script
 ROM_PATH = "MetroidII.gb"
-
 
 # Used when registering with gymnasium
 # episode ends forcefully after this many steps
@@ -126,6 +126,7 @@ ROM_PATH = "MetroidII.gb"
 
 # class MetroidEnv(pufferlib.emulation.GymnasiumPufferEnv):
 class MetroidEnv(gym.Env):
+    DEFAULT_EPISODE_LENGTH = 400000
 
     # emulation_speed_factor overrides the "debug" emulation speed
     def __init__(self,  
@@ -139,7 +140,8 @@ class MetroidEnv(gym.Env):
             num_to_tick=DEFAULT_NUM_TO_TICK,
             buf=None): 
 
-        self.metadata = {'render_modes': ['human', 'rgb_array', 'tiles']}
+        # self.metadata = {'render_modes': ['human', 'rgb_array', 'tiles']}
+        self.metadata = {'render_modes': ['human', 'rgb_array']}
 
         # Emulator doesn't support "half speed" unfortunately
         assert type(emulation_speed_factor) is int, "Must use integer speed factor. Pyboy doesn't support fractional speeds!"
@@ -310,8 +312,11 @@ class MetroidEnv(gym.Env):
         # PyBoy Cython weirdness makes "game_over()" an int 
         done = False if self.pyboy.game_wrapper.game_over() == 0 else True
 
-        info = {}
+        # For time limits, I'm opting to assume that the user will wrap with a
+        # gymnasium time limit
         truncated = False
+
+        info = {}
 
         # Calculate the reward
         reward = self._calculate_reward()
@@ -379,8 +384,8 @@ class MetroidEnv(gym.Env):
         # Reward more frequently for vertical than horizontal
         # jumping is hard!  walking is easy
         # Rewarding every pixel would give way too many rewards
-        pixel_exploration_skip_x = 50
-        pixel_exploration_skip_y = 25
+        pixel_exploration_skip_x = 65
+        pixel_exploration_skip_y = 30
 
         # if these coordinates are new, cache them, give reward, and move on
         pixX, pixY = self.getCoordinatesPixels()
