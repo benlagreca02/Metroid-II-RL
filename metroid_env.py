@@ -378,7 +378,8 @@ class MetroidEnv(gym.Env):
 
         # Reward for NOT hitting a new coordinate
         # Very small, but non-zero
-        no_exploration_reward = -0.005
+        # no_exploration_reward = -0.005
+        no_exploration_reward = 0.0
         
         # Pixel value is 8 bit (0-255)
         # Reward more frequently for vertical than horizontal
