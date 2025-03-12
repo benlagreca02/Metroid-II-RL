@@ -12,104 +12,58 @@ from gymnasium import spaces
 import numpy as np
 import cv2
 
-# Removed "start" since we don't ever want to or need to pause
-# Each "action" is a list of buttons to press at once. VERY important to be able
-# to press more than one button at once for metroid
-
-# A is jump, B is shoot
-
-# Thanks to capnspacehook for action space
-NOP = [WindowEvent.PASS]
-SHOOT = [WindowEvent.PRESS_BUTTON_A]
-JUMP = [WindowEvent.PRESS_BUTTON_B]
-
-UP = [WindowEvent.PRESS_ARROW_UP]
-DOWN = [WindowEvent.PRESS_ARROW_DOWN]
-LEFT = [WindowEvent.PRESS_ARROW_LEFT]
-RIGHT = [WindowEvent.PRESS_ARROW_RIGHT]
-
-SWITCH = [WindowEvent.PRESS_BUTTON_SELECT]
-
-# "Screw attack", jump and move to the side
-JUMP_LEFT = [*JUMP, *LEFT]
-JUMP_RIGHT = [*JUMP, *RIGHT]
-
-# Run and shoot
-SHOOT_LEFT = [*SHOOT, *LEFT]
-SHOOT_RIGHT = [*SHOOT, *RIGHT]
-
-# shoot upwards, and move while shooting upwards
-SHOOT_UP = [*SHOOT, *UP]
-SHOOT_UP_RIGHT = [*SHOOT, *UP, *RIGHT]
-SHOOT_UP_LEFT = [*SHOOT, *UP, *LEFT]
-
-#  VERY necessary for getting through vertical shafts where tiles need to be
-#  shot
-SHOOT_DOWN = [*SHOOT, *DOWN]
-
-ACTIONS = [
-        NOP,
-        SHOOT,
-        JUMP,
-        UP,
-        DOWN,
-        LEFT,
-        RIGHT,
-        SWITCH,
-        JUMP_LEFT,
-        JUMP_RIGHT,
-        SHOOT_LEFT,
-        SHOOT_RIGHT,
-        SHOOT_UP,
-        SHOOT_UP_RIGHT,
-        SHOOT_UP_LEFT,
-        SHOOT_DOWN
-]
-
-# All possible buttons "on hardware"
-BUTTONS = [
-    WindowEvent.PRESS_ARROW_UP,
-    WindowEvent.PRESS_ARROW_DOWN,
-    WindowEvent.PRESS_ARROW_RIGHT,
-    WindowEvent.PRESS_ARROW_LEFT,
-    WindowEvent.PRESS_BUTTON_A,
-    WindowEvent.PRESS_BUTTON_B,
-    WindowEvent.PRESS_BUTTON_SELECT
-]
-
-RELEASE_BUTTONS = [
-    WindowEvent.RELEASE_ARROW_UP,
-    WindowEvent.RELEASE_ARROW_DOWN,
-    WindowEvent.RELEASE_ARROW_RIGHT,
-    WindowEvent.RELEASE_ARROW_LEFT,
-    WindowEvent.RELEASE_BUTTON_A,
-    WindowEvent.RELEASE_BUTTON_B,
-    WindowEvent.RELEASE_BUTTON_SELECT
-]
-
-# Given a button press, get the "release" version of it
-# ex: release_a = RELEASE_BUTTON_LOOKUP[press_a]
-RELEASE_BUTTON_LOOKUP = {button: r_button for button, r_button in zip(BUTTONS, RELEASE_BUTTONS)}
+# All of the button constants
+from actions_lists import *
 
 
-# Each tile is 16 bytes: 8x8 with 2 bits/pixel
-# Could probably remove this code eventually, but I may re-explore it eventually
+# For the (currently unimplemented) tile based, observation space
 TILE_NUM_BYTES = 16
 DIGEST_SIZE_BYTES = 2
 DIGEST_DTYPE = np.uint16
-# tile based
 # observation_space = spaces.Box(low=0, high=65535, shape=(17,20,1), dtype=DIGEST_DTYPE)
 
-# TODO add health, and missles to the observation space
-# Will probably be a tuple of Box and a few values
-
-# whole screen black and white
+# whole screen black and white observation space example
 # observation_space = spaces.Box(low=0, high=254, shape=(144,160, 1), dtype=np.int8)
 
 # Was 2, divides screen resolution down, less detail but faster performance
 SCREEN_FACTOR = 4
 # the -8 is to remove the bottom banner of the screen
-observation_space = spaces.Box(low=0, high=255, shape=((144-8)//SCREEN_FACTOR, (160)//SCREEN_FACTOR, 1), dtype=np.uint8)
+quarter_res_screen_obs_space = spaces.Box(low=0, high=255, shape=((144-8)//SCREEN_FACTOR, (160)//SCREEN_FACTOR, 1), dtype=np.uint8)
+
+SCREEN_OBS = "screen"
+HEALTH_OBS = "health"
+MISSILE_OBS = "missile"
+
+# From wram.asm in M2 decomp linked on Datacrystal
+# 00000001 ; 01: Bombs
+# 00000010 ; 02: Hi-jump
+# 00000100 ; 04: Screw attack
+# 00001000 ; 08: Space jump
+# 00010000 ; 10: Spring ball
+# 00100000 ; 20: Spider ball
+# 01000000 ; 40: Varia suit
+# 10000000 ; 80: Unused
+MAJOR_UPGRADES_OBS = "major_upgrades"
+
+#        0: Normal
+#        1: Ice
+#        2: Wave
+#        3: Spazer
+#        4: Plasma
+#        7: Bomb beam? (see $2:52C6)
+#        8: Missile
+BEAM_OBS = "beam"
+
+observation_space = spaces.Dict({
+    SCREEN_OBS: quarter_res_screen_obs_space,
+    # TODO change to be "total health percent" so its a flaot like missiles
+    HEALTH_OBS: spaces.Box(low=0, high=99, dtype=np.uint8),
+    MISSILE_OBS: spaces.Box(low=0, high=100, dtype=np.float32),
+    # TODO may be worth changing this to multibinary?
+    MAJOR_UPGRADES_OBS: spaces.Box(low=0, high=127, dtype=np.uint8), # MSB not used
+    BEAM_OBS: spaces.Box(low=0, high=255, dtype=np.uint8),
+})
+
 
 # How many frames to advance every action
 # 1 = every single frame
@@ -179,11 +133,7 @@ class MetroidEnv(gym.Env):
 
         self._calc_and_update_exploration()
 
-    def _get_obs(self):
-        # Get an observation from environment
-        # Used in step, and reset, so it reduces code and makes it much cleaner
-        # to do this in its own function
-        
+    def _get_screen_obs(self): 
         # returns RGBA, we don't need "A" channel
         # -8 is to remove the "bar" from the bottom of the screen
         rgb = self.pyboy.screen.ndarray[:-8, :, :3]
@@ -199,46 +149,41 @@ class MetroidEnv(gym.Env):
         gray = np.reshape(gray, gray.shape + (1,))
 
         return gray
-
-    # May eventually use this
-    def _get_obs_tiles(self):
+    
+    def _get_obs(self):
         # Get an observation from environment
-        # Used in step, and reset
+        # Used in step, and reset, so it reduces code and makes it much cleaner
+        # to do this in its own function
+        screen = self._get_screen_obs()
+
+        mem_vals = self._get_mem_state_dict()
+
+
+        # note this is accessing the dict made by _get_mem_state_dict, NOT the
+        # actual observation space, hence *_OBS isn't used
+        health = np.array( [np.uint8(mem_vals['hp'])] )
+        missiles = np.float32(mem_vals['missiles'] / mem_vals['missile_capacity'])
+        missiles = np.array([missiles])
+
+        upgrades = np.array([mem_vals['upgrades']], dtype=np.uint8)
+        beam = np.array([mem_vals['beam']], dtype=np.uint8)
+
+        # potential code for multibinary (?)
+        # upgrades = np.unpackbits(np.array([mem_vals['upgrades']], dtype=np.uint8), bitorder='little')[:7]
+        # beam = np.unpackbits(np.array([mem_vals['beam']], dtype=np.uint8), bitorder='little')[:8]
+        # upgrades = np.uint8(mem_vals['upgrades'])
+        # beam = np.uint8(mem_vals['beam'])
         
-        # Get the ID of all the tiles
-        # 17x20 IDs which can be used to get VRAM addresses
-        tile_ids = self.pyboy.game_area()
-         
-        # 17x20x1 !!! must be x1!!!!!
-        digest_array = np.zeros((*tile_ids.shape, 1), dtype=DIGEST_DTYPE)
+        dict_obs = {SCREEN_OBS: screen,
+            HEALTH_OBS: health,  # for now, will update to percent later
+            MISSILE_OBS: missiles,
+            MAJOR_UPGRADES_OBS: upgrades,
+            BEAM_OBS: beam,
+        }
 
-        # FOR EACH TILE ON THE SCREEN
-        for i in range(tile_ids.shape[0]):
-            for j in range(tile_ids.shape[1]):
-                # What address in VRAM is the tile stored at
-                vram_addr = self.pyboy.get_tile(tile_ids[i,j]).data_address
+        return dict_obs
 
-                # Read the 16 bytes of data for the tile
-                tile_byte_arr = self.pyboy.memory[vram_addr:vram_addr+16]
-                
-                # Each 8x8 tile is 2 bits per pixel (four possible color
-                # selectinos) That gives 128 bits per tile
 
-                # 128 bits per tile -> 16 bytes
-
-                # Crush the 16 byte value into a 2 byte value using XORs
-                # i.e. crushing 128 bits to 16 bits
-                
-                # 16 bytes per tile
-                for d in range(TILE_NUM_BYTES//DIGEST_SIZE_BYTES):
-                    curr = d*DIGEST_SIZE_BYTES
-                    # convert from python ints to array of np.uint8's
-                    np_byte_arr = np.array(tile_byte_arr[curr:curr+DIGEST_SIZE_BYTES], dtype=np.uint8)
-
-                    digest_array[i,j] ^= np_byte_arr.view(DIGEST_DTYPE)
-                    # digest_array[i,j] ^= np.frombuffer(np_byte_arr, dtype=DIGEST_DTYPE)
-
-        return digest_array
 
 
     def getAllCoordData(self):
@@ -260,16 +205,17 @@ class MetroidEnv(gym.Env):
     def _get_mem_state_dict(self):
         '''
         Get values from emulator that are relevent to the game
+
         As game_wrapper changes in PyBoy, this can be changed as well
         '''
         # GMC is global metroid count
         vals_of_interest = {
                 'hp': self.pyboy.game_wrapper.hp,
-                # May be wrong, so ignoring e-tanks for now
-                # 'e_tanks': self.pyboy.game_wrapper.e_tanks
+                # Eventually, add E tanks and do some math with them
                 'missiles': self.pyboy.game_wrapper.missiles,
                 'missile_capacity': self.pyboy.game_wrapper.missile_capacity,
                 'upgrades': self.pyboy.game_wrapper.major_upgrades,
+                'beam': self.pyboy.game_wrapper.beam,
                 'gmc': self.pyboy.game_wrapper.global_metroid_count,
         }
         return vals_of_interest
@@ -407,12 +353,10 @@ class MetroidEnv(gym.Env):
 
     def reset(self, **kwargs):
         self.pyboy.game_wrapper.reset_game()
-        self.obs = self._get_obs()
         info = {}
-
         self.explored = set()
         self._calc_and_update_exploration()
-        return self.obs, info
+        return self._get_obs(), info
 
 
     def render(self):
@@ -423,12 +367,6 @@ class MetroidEnv(gym.Env):
         elif self.render_mode =='rgb_array':
             # Should be easy enough
             raise NotImplementedError
-        '''
-        elif self.render_mode == 'tiles':
-            if self.obs == None:
-                self.obs = self._get_obs()
-            return self.obs
-        '''
 
     def close(self):
         self.pyboy.stop()

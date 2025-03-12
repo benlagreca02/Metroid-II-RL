@@ -1,6 +1,6 @@
-# TODO write code to load and watch a model perform here
 import argparse
 from PIL import Image
+from metroid_env import *
 
 def get_action_from_model(model, obs):
     action, _states = model.predict(obs)
@@ -14,7 +14,8 @@ def main():
     parser.add_argument('-c', '--coords', action='store_true', help='Print coordinate values (Pixels and Area)')
     parser.add_argument('-o', '--observation', action='store_true', help='Print observation space')
     parser.add_argument('-r', '--random_agent', action='store_true', help='take random actions')
-    parser.add_argument('-g', '--generate_image', action='store_true', help='Generates a png of the observation space')
+    parser.add_argument('-g', '--generate_image', action='store_true', help='Generates a png of the observation space') 
+    parser.add_argument('-s', '--shape', action='store_true', help="prints shape of observations")
     
     args = parser.parse_args()
     
@@ -35,12 +36,11 @@ def main():
     if args.observation:
         print("Printing observation space")
 
+    if args.shape:
+        print("Printing shape of observations")
 
-
-    # TODO move these back up to the top when done prototyping with path loading
     import gymnasium as gym
     from stable_baselines3 import PPO
-    from metroid_env import MetroidEnv, DEFAULT_NUM_TO_TICK
 
     env = MetroidEnv(
             render_mode='human',
@@ -73,7 +73,7 @@ def main():
     elif args.random_agent:
         action_getter = lambda obs: (env.action_space.sample(), None)
     else:
-        print("Using human player mode")
+        # print("Using human player mode")
         action_getter = lambda obs: (0,None)
 
 
@@ -94,6 +94,8 @@ def main():
             print(f"{env.getAllCoordData()}")
         if args.observation:
             print(f"\n{obs}")
+        if args.shape:
+            print(f"{[(k, type(o)) for k,o in obs.items()]}")
 
 
 if __name__ == "__main__":

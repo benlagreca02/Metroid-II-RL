@@ -47,7 +47,7 @@ training and AI portion of things.
 ### Agent Milestones
 - [x] explore starting area
 - [ ] Stop shooting randomly and "spazzing out"
-- [ ] Get out of starting area relatively quickly
+- [x] Get out of starting area relatively quickly
 - [ ] Avoid/kill enemies just outside starting area
 - [ ] Drop down through first major shaft (requires downward jump shooting) 
 - [ ] Find first Metroid
@@ -55,6 +55,7 @@ training and AI portion of things.
 
 ### Model
 - [ ] Add missle count, "gun state", and health to observation space
+- [ ] Re-write reward functions to only punish when losing health and missles
 - [ ] Change to Pufferlib native environment, rather than gym wrapper (?)
 - [x] Add frame stacking to observation space (Added LSTM instead)
 - [x] improve  observations of environments to be tiles, rather than pixels
