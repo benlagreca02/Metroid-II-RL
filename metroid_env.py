@@ -56,7 +56,7 @@ BEAM_OBS = "beam"
 
 observation_space = spaces.Dict({
     SCREEN_OBS: quarter_res_screen_obs_space,
-    # TODO change to be "total health percent" so its a flaot like missiles
+    # TODO change to be "total health percent" so its a flaot like missiles (?)
     HEALTH_OBS: spaces.Box(low=0, high=99, dtype=np.uint8),
     MISSILE_OBS: spaces.Box(low=0, high=100, dtype=np.float32),
     # TODO may be worth changing this to multibinary?
@@ -80,7 +80,7 @@ ROM_PATH = "MetroidII.gb"
 
 # class MetroidEnv(pufferlib.emulation.GymnasiumPufferEnv):
 class MetroidEnv(gym.Env):
-    DEFAULT_EPISODE_LENGTH = 400000
+    DEFAULT_EPISODE_LENGTH = 300000
 
     # emulation_speed_factor overrides the "debug" emulation speed
     def __init__(self,  
@@ -133,9 +133,11 @@ class MetroidEnv(gym.Env):
 
         self._calc_and_update_exploration()
 
+        self.old_mem_state = self._get_mem_state_dict()
+
     def _get_screen_obs(self): 
-        # returns RGBA, we don't need "A" channel
         # -8 is to remove the "bar" from the bottom of the screen
+        # 3 at end to only get RGB, we don't want alpha channel
         rgb = self.pyboy.screen.ndarray[:-8, :, :3]
 
         h, w = rgb.shape[:2]
@@ -150,6 +152,7 @@ class MetroidEnv(gym.Env):
 
         return gray
     
+
     def _get_obs(self):
         # Get an observation from environment
         # Used in step, and reset, so it reduces code and makes it much cleaner
@@ -185,7 +188,6 @@ class MetroidEnv(gym.Env):
 
 
 
-
     def getAllCoordData(self):
         return self.getCoordinatesArea(), self.getCoordinatesPixels()
 
@@ -208,7 +210,7 @@ class MetroidEnv(gym.Env):
 
         As game_wrapper changes in PyBoy, this can be changed as well
         '''
-        # GMC is global metroid count
+        # GMC is Global Metroid Count
         vals_of_interest = {
                 'hp': self.pyboy.game_wrapper.hp,
                 # Eventually, add E tanks and do some math with them
@@ -276,10 +278,18 @@ class MetroidEnv(gym.Env):
         Calculates the reward based on the current state of the emulator.
         Includes the calculation of exploration reward 
         '''
+        # TODO could convert this to a dictionary at some point?
         missileWeight = 2
         healthWeight = 1
 
         mem_state = self._get_mem_state_dict()
+        # calculate "deltas" of memory values
+        deltas = dict()
+        # print("OLD MEM: {self.old_mem_state}")
+        # print("CUR MEM: {mem_state}")
+        for k,v in mem_state.items():
+            deltas[k] = v - self.old_mem_state[k]
+
         reward = self._calc_and_update_exploration()
         # iterate through observations, and "weights"
 
@@ -293,15 +303,16 @@ class MetroidEnv(gym.Env):
         # reward penalized as num missles missing
         # If all missiles present, this is 0
         # If no missiles present, this is 1
-        missingMissilePercent = 1 - (mem_state['missiles'] / mem_state['missile_capacity'])
-        reward -= (missileWeight*missingMissilePercent)
+        # missingMissilePercent = 1 - (mem_state['missiles'] / mem_state['missile_capacity'])
+
+        # reward -= (missileWeight*missingMissilePercent)
 
         # TODO Implement a "percent health" in game wrapper, and use that
         # instead. HP in metroid goes from 99 -> 0, then wraps around to 99
         # again. This needs to be double checked at some point. But agent gets
         # nowhere near getting an E tank, so I'll worry about that later.
-        missingHealth = (99 - mem_state['hp'])
-        reward -= healthWeight * missingHealth
+        # missingHealth = (99 - mem_state['hp'])
+        # reward -= healthWeight * missingHealth
 
         # NO CHANCE the agent gets this far yet, so I'll implement these later.
         # TODO implement metroid killing reward
@@ -311,6 +322,17 @@ class MetroidEnv(gym.Env):
         # give some reward for number of upgrades?
         # reward = weight * numBits(upgrades)
 
+        # TODO could make it so losing missiles isn't that bad, but gaining them
+        # is great?
+        # small punishment for every missle shot, and reward for missiles gained
+        reward += missileWeight * deltas['missiles']
+
+        # health lost is bad
+        # TODO could do something where losing your first few health isn't bad,
+        # but losing your last bits of health is worse (?)
+        reward += healthWeight * deltas['hp']
+
+        self.old_mem_state = mem_state
         return reward
 
 
@@ -322,20 +344,15 @@ class MetroidEnv(gym.Env):
         # May become oversaturated at some point...
         exploration_reward_factor = 4
 
-        # Reward for NOT hitting a new coordinate
-        # Very small, but non-zero
-        # no_exploration_reward = -0.005
-        no_exploration_reward = 0.0
-        
         # Pixel value is 8 bit (0-255)
         # Reward more frequently for vertical than horizontal
-        # jumping is hard!  walking is easy
+        # because jumping is hard walking is easy
         # Rewarding every pixel would give way too many rewards
-        pixel_exploration_skip_x = 65
-        pixel_exploration_skip_y = 30
+        pixel_exploration_skip_x = 35
+        pixel_exploration_skip_y = 20
 
-        # if these coordinates are new, cache them, give reward, and move on
         pixX, pixY = self.getCoordinatesPixels()
+
         # pixels move very quickly, this makes it so the reward only triggers
         # after going a direction for a while
         pixX = pixX // pixel_exploration_skip_x
@@ -345,7 +362,7 @@ class MetroidEnv(gym.Env):
 
         if coordData in self.explored:
             # We've been here before
-            return no_exploration_reward
+            return 0
 
         self.explored.add(coordData)
         return exploration_reward_factor * len(self.explored)

@@ -16,6 +16,7 @@ def main():
     parser.add_argument('-r', '--random_agent', action='store_true', help='take random actions')
     parser.add_argument('-g', '--generate_image', action='store_true', help='Generates a png of the observation space') 
     parser.add_argument('-s', '--shape', action='store_true', help="prints shape of observations")
+    parser.add_argument('-w', '--reward', action='store_true', help="print reward")
     
     args = parser.parse_args()
     
@@ -38,6 +39,9 @@ def main():
 
     if args.shape:
         print("Printing shape of observations")
+
+    if args.reward:
+        print("Printing rewards")
 
     import gymnasium as gym
     from stable_baselines3 import PPO
@@ -84,6 +88,7 @@ def main():
     import numpy as np
     np.set_printoptions(linewidth=np.inf)
     
+    net_reward = 0
     while True:
         # action, _states = model.predict(obs)
         action, _states = action_getter(obs)
@@ -96,6 +101,9 @@ def main():
             print(f"\n{obs}")
         if args.shape:
             print(f"{[(k, type(o)) for k,o in obs.items()]}")
+        if args.reward:
+            net_reward += rewards
+            print(f"Reward: {rewards}\tNet: {net_reward}")
 
 
 if __name__ == "__main__":
