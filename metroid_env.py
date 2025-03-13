@@ -80,7 +80,10 @@ ROM_PATH = "MetroidII.gb"
 
 # class MetroidEnv(pufferlib.emulation.GymnasiumPufferEnv):
 class MetroidEnv(gym.Env):
-    DEFAULT_EPISODE_LENGTH = 300000
+    # I think this is about 2 hours of "real life playing"
+    # DEFAULT_EPISODE_LENGTH = 400000
+    # I believe ~30 minutes
+    DEFAULT_EPISODE_LENGTH = 100000
 
     # emulation_speed_factor overrides the "debug" emulation speed
     def __init__(self,  
