@@ -368,7 +368,7 @@ class MetroidEnv(gym.Env):
             return 0
 
         self.explored.add(coordData)
-        return exploration_reward_factor * len(self.explored)
+        return exploration_reward_factor * self.explored
 
 
     def reset(self, **kwargs):
