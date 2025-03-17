@@ -57,8 +57,9 @@ def main():
         for _ in range(10):
             obs, rewards, dones, truncated, info = env.step(0)
 
-        h,w,dims = obs.shape
-        image_2d = obs.reshape(h, w)
+        screen_obs = obs[SCREEN_OBS] 
+        h,w,dims = screen_obs.shape
+        image_2d = screen_obs.reshape(h, w)
 
         # Create a PIL Image object
         image = Image.fromarray(image_2d)
