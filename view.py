@@ -1,6 +1,7 @@
+from metroid_env import *
 import argparse
 from PIL import Image
-from metroid_env import *
+import sys
 
 def get_action_from_model(model, obs):
     action, _states = model.predict(obs)
@@ -21,12 +22,12 @@ def main():
     args = parser.parse_args()
     
     if not args.model_path:
-        print("No model given", end=' ')
+        print("No model given,", end=' ')
 
     if args.random_agent:
-        print("Taking random actions")
+        print("using random agent")
     else:
-        print("Using human control")
+        print("using human control")
 
     if args.area:
         print("Printing game area from pyboy")
@@ -69,6 +70,7 @@ def main():
         return
 
     if args.model_path:
+        print("This isn't working for 'pufferlib' style models yet!!!!", file=sys.stderr)
         print("Loading model from %s" % args.model_path)
         # has no memory, use frame stacking or LSTM in future if you use SB3
         # instead of puffer/cleanRL...
@@ -90,7 +92,8 @@ def main():
     np.set_printoptions(linewidth=np.inf)
     
     net_reward = 0
-    while True:
+    truncated = False
+    while not truncated:
         # action, _states = model.predict(obs)
         action, _states = action_getter(obs)
         obs, rewards, dones, truncated, info = env.step(action)
@@ -105,6 +108,7 @@ def main():
         if args.reward:
             net_reward += rewards
             print(f"Reward: {rewards}\tNet: {net_reward}")
+    print("Truncated!")
 
 
 if __name__ == "__main__":

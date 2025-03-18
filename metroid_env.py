@@ -82,7 +82,6 @@ ROM_PATH = "MetroidII.gb"
 class MetroidEnv(gym.Env):
     # I think this is about 2 hours of "real life playing"
     # DEFAULT_EPISODE_LENGTH = 400000
-    # I believe ~30 minutes
     DEFAULT_EPISODE_LENGTH = 100000
 
     # emulation_speed_factor overrides the "debug" emulation speed
@@ -92,9 +91,9 @@ class MetroidEnv(gym.Env):
             emulation_speed_factor=0,
             debug=False,
             render_mode='rgb_array',
-
-            # Pufferlib options
             num_to_tick=DEFAULT_NUM_TO_TICK,
+            stale_truncate_limit=10000,
+            # Pufferlib options
             buf=None): 
 
         # self.metadata = {'render_modes': ['human', 'rgb_array', 'tiles']}
@@ -105,38 +104,35 @@ class MetroidEnv(gym.Env):
         assert type(num_to_tick) is int, "Must use integer frame-tick! You can't tick by half a frame you goober!"
         assert render_mode in self.metadata["render_modes"], "Invalid render mode!"
 
-        if self.render_mode == 'human':
-            self.is_render_mode_human = True
-        else:
-            self.is_render_mode_human = False
-
         # PyBoy emulator configuration
         self.num_to_tick = num_to_tick
         win = 'SDL2' if render_mode == 'human' else 'null'
         self.pyboy = PyBoy(rom_path, window=win, debug=debug)
         self.pyboy.set_emulation_speed(emulation_speed_factor)
-        
-        # Pufferlib configuration
-        # self.single_observation_space = observation_space 
-        # self.single_action_space = spaces.Discrete(len(actions))
-        # self.num_agents = num_agents
 
         # Normal (Gymnasium) config
         self.observation_space = observation_space
         self.action_space = spaces.Discrete(len(ACTIONS))
 
-        # the game_wrapper is a part of PyBoy
-        # PyBoy auto-detects game, and determines which wrapper to use
+        # See PyBoy for game_wrapper details
         self.pyboy.game_wrapper.start_game()
         self.is_render_mode_human = True if render_mode == 'human' else False
 
-        self.explored = set()
         # dict of buttons, and True/False for if they're being held or not
         self._currently_held = {button: False for button in BUTTONS}
 
+        # Cache the current coordinate
+        self.explored = set()
         self._calc_and_update_exploration()
-
         self.old_mem_state = self._get_mem_state_dict()
+
+        # For counting how long we've been in a spot
+        self.stale_exploration_count = 0
+
+        # Should be a large number. Environment will truncate if it hasn't hit a
+        # new exploration in this many 'steps'. If 0, it won't truncate
+        self.stale_truncate_limit = stale_truncate_limit
+
 
     def _get_screen_obs(self): 
         # -8 is to remove the "bar" from the bottom of the screen
@@ -164,9 +160,12 @@ class MetroidEnv(gym.Env):
 
         mem_vals = self._get_mem_state_dict()
 
-
         # note this is accessing the dict made by _get_mem_state_dict, NOT the
         # actual observation space, hence *_OBS isn't used
+
+        # TODO eventually switch health to be percent given all e-tanks
+        # I'll worry about that when the agent happens to get close to the first
+        # E tank. Could also give huge reward for picking one up?
         health = np.array( [np.uint8(mem_vals['hp'])] )
         missiles = np.float32(mem_vals['missiles'] / mem_vals['missile_capacity'])
         missiles = np.array([missiles])
@@ -181,7 +180,7 @@ class MetroidEnv(gym.Env):
         # beam = np.uint8(mem_vals['beam'])
         
         dict_obs = {SCREEN_OBS: screen,
-            HEALTH_OBS: health,  # for now, will update to percent later
+            HEALTH_OBS: health,  
             MISSILE_OBS: missiles,
             MAJOR_UPGRADES_OBS: upgrades,
             BEAM_OBS: beam,
@@ -226,12 +225,7 @@ class MetroidEnv(gym.Env):
         return vals_of_interest
 
 
-
-    def step(self, action_index):
-        assert self.action_space.contains(action_index), "%r (%s) invalid" % (action_index, type(action_index))
-
-        action = ACTIONS[action_index]
-
+    def do_action_on_emulator(self, action):
         # get buttons currently being held
         holding = [b for b in self._currently_held if self._currently_held[b]]
 
@@ -255,10 +249,18 @@ class MetroidEnv(gym.Env):
             self._currently_held[button] = True
 
 
+    def step(self, action_index):
+        # Would this slow down performance? I doubt it but I really don't NEED
+        # to check this
+        # assert self.action_space.contains(action_index), "%r (%s) invalid" % (action_index, type(action_index))
+
+        action = ACTIONS[action_index]
+
+        self.do_action_on_emulator(action)
+
         self.pyboy.tick(self.num_to_tick, self.is_render_mode_human)
 
-        # Cache, so we don't fetch twice in render() function
-        self.obs = self._get_obs()
+        obs = self._get_obs()
 
         # PyBoy Cython weirdness makes "game_over()" an int 
         done = False if self.pyboy.game_wrapper.game_over() == 0 else True
@@ -267,12 +269,16 @@ class MetroidEnv(gym.Env):
         # gymnasium time limit
         truncated = False
 
+        # Stale checking
+        should_check_limit = self.stale_truncate_limit > 0
+        truncated = should_check_limit and self.stale_exploration_count >= self.stale_truncate_limit
+
         info = {}
 
         # Calculate the reward
         reward = self._calculate_reward()
 
-        return self.obs, reward, done, truncated, info
+        return obs, reward, done, truncated, info
 
 
 
@@ -282,8 +288,13 @@ class MetroidEnv(gym.Env):
         Includes the calculation of exploration reward 
         '''
         # TODO could convert this to a dictionary at some point?
-        missileWeight = 2
-        healthWeight = 1
+        missileWeight = 1
+
+        # Losing health is pretty bad
+        healthWeight = 10
+
+        # AMAZING, so make it giant
+        gmcWeight = 1000
 
         mem_state = self._get_mem_state_dict()
         # calculate "deltas" of memory values
@@ -296,20 +307,6 @@ class MetroidEnv(gym.Env):
         reward = self._calc_and_update_exploration()
         # iterate through observations, and "weights"
 
-        # TODO rewrite missile award, agent may avoid missile tanks
-        # given 3 missiles, and 30 capacity, currently have 10%
-        # if a tank is picked up and 30 incresases, percent missiles drops,
-        # which is interpreted as a punishment.
-        # Agent gets nowhere near a missle tank yet, so I'm not worrying about
-        # it yet.
-
-        # reward penalized as num missles missing
-        # If all missiles present, this is 0
-        # If no missiles present, this is 1
-        # missingMissilePercent = 1 - (mem_state['missiles'] / mem_state['missile_capacity'])
-
-        # reward -= (missileWeight*missingMissilePercent)
-
         # TODO Implement a "percent health" in game wrapper, and use that
         # instead. HP in metroid goes from 99 -> 0, then wraps around to 99
         # again. This needs to be double checked at some point. But agent gets
@@ -317,25 +314,28 @@ class MetroidEnv(gym.Env):
         # missingHealth = (99 - mem_state['hp'])
         # reward -= healthWeight * missingHealth
 
-        # NO CHANCE the agent gets this far yet, so I'll implement these later.
-        # TODO implement metroid killing reward
-        # reward += weight * metroidsKilled (?)
 
+        # small punishment for every missle shot, and reward missiles gained 
+        # Could change to give bigger reward for gained? i.e. -0.05 when
+        # shooting
+        reward += missileWeight * deltas['missiles']
+
+        # health lost is bad
+        # Could do something where losing your first few health isn't bad,
+        # but losing your last bits of health is worse (?) Could incentivise
+        # defensive behaivor with low health
+        reward += healthWeight * deltas['hp']
+
+        # Good to shrink this, so its negative
+        reward += gmcWeight * -deltas['gmc']
+
+        # NO CHANCE the agent gets this far yet, so I'll implement these later.
         # TODO implement upgrade award.
         # give some reward for number of upgrades?
         # reward = weight * numBits(upgrades)
 
-        # TODO could make it so losing missiles isn't that bad, but gaining them
-        # is great?
-        # small punishment for every missle shot, and reward for missiles gained
-        reward += missileWeight * deltas['missiles']
-
-        # health lost is bad
-        # TODO could do something where losing your first few health isn't bad,
-        # but losing your last bits of health is worse (?)
-        reward += healthWeight * deltas['hp']
-
         self.old_mem_state = mem_state
+
         return reward
 
 
@@ -345,14 +345,26 @@ class MetroidEnv(gym.Env):
         # Reward multiplier for hitting a new coordinate
         # reward = factor * len(explored)
         # May become oversaturated at some point...
-        exploration_reward_factor = 4
+        exploration_reward = 0.5
+
+        # Wait this many steps before we start punishment
+        lack_of_exploration_threshold = 1000
+        # Punish this much every step after threshold
+        # Arbitrary, but very very small
+        lack_of_exploration_punishment = -0.0025
+
 
         # Pixel value is 8 bit (0-255)
         # Reward more frequently for vertical than horizontal
-        # because jumping is hard walking is easy
+        # because jumping is hard and walking is easy
+
         # Rewarding every pixel would give way too many rewards
-        pixel_exploration_skip_x = 35
-        pixel_exploration_skip_y = 20
+        # Note: it should probably be divisible evenly by 256
+        # If you pick something not divisible evenly (say 100)
+        # you will get bursts of rewards (0, 100, 200). When 255 rolls over to
+        # 0, the reward is given over a delta of 55 pixels if that makes sense?
+        pixel_exploration_skip_x = 32
+        pixel_exploration_skip_y = 16
 
         pixX, pixY = self.getCoordinatesPixels()
 
@@ -363,12 +375,15 @@ class MetroidEnv(gym.Env):
 
         coordData = ((pixX, pixY), self.getCoordinatesArea())
 
-        if coordData in self.explored:
-            # We've been here before
-            return 0
+        if coordData not in self.explored:
+            self.explored.add(coordData)
+            self.stale_exploration_count = 0
+            return exploration_reward
+        
+        self.stale_exploration_count += 1 
+        should_punish = self.stale_exploration_count > lack_of_exploration_threshold 
 
-        self.explored.add(coordData)
-        return exploration_reward_factor 
+        return lack_of_exploration_punishment if should_punish else 0
 
 
     def reset(self, **kwargs):

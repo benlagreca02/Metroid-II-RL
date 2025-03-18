@@ -108,6 +108,7 @@ implementation, wrappers, libraries oh my! At this point, I'm switching gears to
 training was "proof of concept". And many bugs and kinks were worked out along
 the way before switching to a more AI focused development.
 
+
 The first real model was using simply the observation of the screen this worked
 great for getting past the  initial
 
@@ -117,6 +118,9 @@ A list of extremely silly mistakes
   was simply single frame tapping the button. Needed to re-implement the
   emulator interfacing to check next action, and release buttons not in the next
   action.
+- At one point, I had my exploration reward scale with explorations. I.e. for
+  every N new coordinate points, we'd give N\*W  reward, the reward very quickly
+  balooned, and the agent would just get stuck going to the right.
 - By shrinking the screen by four, after CNN layers, the screen was too small,
   and got reduced to one single feature! This is sub-optimal for AI.
 - Gymnasium can't handle (width, height) for images even if its black and white.
