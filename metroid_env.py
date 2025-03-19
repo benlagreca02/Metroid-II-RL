@@ -82,7 +82,7 @@ ROM_PATH = "MetroidII.gb"
 class MetroidEnv(gym.Env):
     # I think this is about 2 hours of "real life playing"
     # DEFAULT_EPISODE_LENGTH = 400000
-    DEFAULT_EPISODE_LENGTH = 100000
+    DEFAULT_EPISODE_LENGTH = 75000
 
     # emulation_speed_factor overrides the "debug" emulation speed
     def __init__(self,  
@@ -92,7 +92,7 @@ class MetroidEnv(gym.Env):
             debug=False,
             render_mode='rgb_array',
             num_to_tick=DEFAULT_NUM_TO_TICK,
-            stale_truncate_limit=10000,
+            stale_truncate_limit=1000,
             # Pufferlib options
             buf=None): 
 
@@ -345,13 +345,13 @@ class MetroidEnv(gym.Env):
         # Reward multiplier for hitting a new coordinate
         # reward = factor * len(explored)
         # May become oversaturated at some point...
-        exploration_reward = 0.5
+        exploration_reward = 1
 
         # Wait this many steps before we start punishment
-        lack_of_exploration_threshold = 1000
+        lack_of_exploration_threshold = 500
         # Punish this much every step after threshold
         # Arbitrary, but very very small
-        lack_of_exploration_punishment = -0.0025
+        lack_of_exploration_punishment = -0.25
 
 
         # Pixel value is 8 bit (0-255)
@@ -363,6 +363,7 @@ class MetroidEnv(gym.Env):
         # If you pick something not divisible evenly (say 100)
         # you will get bursts of rewards (0, 100, 200). When 255 rolls over to
         # 0, the reward is given over a delta of 55 pixels if that makes sense?
+        # really should be 1,2,4,8,16,32,64, or 128
         pixel_exploration_skip_x = 32
         pixel_exploration_skip_y = 16
 
