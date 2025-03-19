@@ -32,6 +32,9 @@ def main():
     if args.area:
         print("Printing game area from pyboy")
 
+    if args.debug:
+        print("Printing pyboy's debug info")
+
     if args.coords:
         print("Printing coordinates of samus")
 
@@ -40,7 +43,6 @@ def main():
 
     if args.shape:
         print("Printing shape of observations")
-
     if args.reward:
         print("Printing rewards")
 
@@ -99,6 +101,8 @@ def main():
         obs, rewards, dones, truncated, info = env.step(action)
         if args.area:
             print(f"AREA: \n{env.game_area()}")
+        if args.debug:
+            print(env.pyboy.game_wrapper)
         if args.coords:
             print(f"{env.getAllCoordData()}")
         if args.observation:
