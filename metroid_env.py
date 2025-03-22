@@ -92,7 +92,9 @@ class MetroidEnv(gym.Env):
             debug=False,
             render_mode='rgb_array',
             num_to_tick=DEFAULT_NUM_TO_TICK,
-            stale_truncate_limit=1000,
+            stale_truncate_limit=1000,  # End game after this many steps
+            reset_exploration_stale= 500, # reset the exploration cache after this many stale steps
+            lack_of_exploration_threshold = 500,  # Wait this many steps before we start punishment
             # Pufferlib options
             buf=None): 
 
@@ -132,6 +134,8 @@ class MetroidEnv(gym.Env):
         # Should be a large number. Environment will truncate if it hasn't hit a
         # new exploration in this many 'steps'. If 0, it won't truncate
         self.stale_truncate_limit = stale_truncate_limit
+        self.reset_exploration_stale = reset_exploration_stale
+        self.lack_of_exploration_threshold = lack_of_exploration_threshold
 
 
     def _get_screen_obs(self): 
@@ -269,6 +273,15 @@ class MetroidEnv(gym.Env):
         # gymnasium time limit
         truncated = False
 
+        # If we're getting stale, reset exploration, hopefully agent will do
+        # something wacky here, rather than avoiding every place its already
+        # been (some backtracking is ok)
+        should_check_reset_stale = self.reset_exploration_stale > 0
+        if should_check_reset_stale and self.stale_exploration_count > self.reset_exploration_stale:
+            self.explored = set()
+            # add current point to 
+            self._calc_and_update_exploration()
+
         # Stale checking
         should_check_limit = self.stale_truncate_limit > 0
         truncated = should_check_limit and self.stale_exploration_count >= self.stale_truncate_limit
@@ -347,8 +360,6 @@ class MetroidEnv(gym.Env):
         # May become oversaturated at some point...
         exploration_reward = 1
 
-        # Wait this many steps before we start punishment
-        lack_of_exploration_threshold = 500
         # Punish this much every step after threshold
         # Arbitrary, but very very small
         lack_of_exploration_punishment = -0.25
@@ -382,7 +393,7 @@ class MetroidEnv(gym.Env):
             return exploration_reward
         
         self.stale_exploration_count += 1 
-        should_punish = self.stale_exploration_count > lack_of_exploration_threshold 
+        should_punish = self.stale_exploration_count > self.lack_of_exploration_threshold 
 
         return lack_of_exploration_punishment if should_punish else 0
 
