@@ -4,21 +4,17 @@ Reinforcement learning plays Metroid II. 'Nuff said.
 
 ## Current state
 
+TALK ABOUT CHECKPOINT THING
+
+
 PyBoy provides "game wrappers" for various games to make AI work easier. I am
 working on implementing one for Metroid II and will eventually get my code
-pulled into the project.
+pulled into the project. For now, I have enough implemented for it to work.
 
 Currently, a pixel-based observation approach is going to be used. Due to the
 environment, a tile-based approach could be used, and that may much faster,
-however it has a lot of its own issues adn those may not be explored here.
-
-`main.py` is going to mostly be used for testing purposes.
-
-`train.py` is the script used to start a training run.
-
-`view.py` is the script used to view a training result.
-
-The `view.py` script has a lot of great args for testing modifications currently
+however it has a lot of its own issues and those may or may not be explored
+here.
 
 ## Tangent about timing info
 

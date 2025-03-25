@@ -12,7 +12,7 @@ def main():
     parser.add_argument('model_path', nargs='?', type=str, help='Path to the model to be loaded')
     parser.add_argument('-a', '--area', action='store_true', help='Print game area')
     parser.add_argument('-d', '--debug', action='store_true', help='show pyboy debug windows')
-    parser.add_argument('-c', '--coords', action='store_true', help='Print coordinate values (Pixels and Area)')
+    parser.add_argument('-c', '--coords', action='store_true', help='Print coordinate values (Pixels and Area), and the number we have already explored')
     parser.add_argument('-o', '--observation', action='store_true', help='Print observation space')
     parser.add_argument('-r', '--random_agent', action='store_true', help='take random actions')
     parser.add_argument('-g', '--generate_image', action='store_true', help='Generates a png of the observation space') 
@@ -104,7 +104,7 @@ def main():
         if args.debug:
             print(env.pyboy.game_wrapper)
         if args.coords:
-            print(f"{env.getAllCoordData()}")
+            print(f"Coords: {env.getAllCoordData()}\tLen explored: {len(env.explored)}")
         if args.observation:
             print(f"\n{obs}")
         if args.shape:

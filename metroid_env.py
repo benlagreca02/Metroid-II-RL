@@ -92,9 +92,10 @@ class MetroidEnv(gym.Env):
             debug=False,
             render_mode='rgb_array',
             num_to_tick=DEFAULT_NUM_TO_TICK,
+            # training params
             stale_truncate_limit=1000,  # End game after this many steps
-            reset_exploration_stale= 500, # reset the exploration cache after this many stale steps
-            lack_of_exploration_threshold = 500,  # Wait this many steps before we start punishment
+            reset_exploration_count=80, # reset the exploration cache after this many explored coordinates
+            lack_of_exploration_threshold=500,  # Wait this many steps before we start punishment
             # Pufferlib options
             buf=None): 
 
@@ -134,7 +135,7 @@ class MetroidEnv(gym.Env):
         # Should be a large number. Environment will truncate if it hasn't hit a
         # new exploration in this many 'steps'. If 0, it won't truncate
         self.stale_truncate_limit = stale_truncate_limit
-        self.reset_exploration_stale = reset_exploration_stale
+        self.reset_exploration_count = reset_exploration_count
         self.lack_of_exploration_threshold = lack_of_exploration_threshold
 
 
@@ -276,10 +277,11 @@ class MetroidEnv(gym.Env):
         # If we're getting stale, reset exploration, hopefully agent will do
         # something wacky here, rather than avoiding every place its already
         # been (some backtracking is ok)
-        should_check_reset_stale = self.reset_exploration_stale > 0
-        if should_check_reset_stale and self.stale_exploration_count > self.reset_exploration_stale:
+        should_check_exploration_reset = self.reset_exploration_count > 0
+        if should_check_exploration_reset and len(self.explored) > self.reset_exploration_count:
             self.explored = set()
-            # add current point to 
+            # add current point to set, but don't give reward, we're already
+            # here
             self._calc_and_update_exploration()
 
         # Stale checking
