@@ -4,7 +4,7 @@ Reinforcement learning plays Metroid II. 'Nuff said.
 
 ## Current state
 
-TALK ABOUT CHECKPOINT THING
+I've changed the model plenty of times, lots is changing, ill document it later
 
 
 PyBoy provides "game wrappers" for various games to make AI work easier. I am
