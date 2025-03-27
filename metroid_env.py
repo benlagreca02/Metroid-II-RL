@@ -26,7 +26,7 @@ DIGEST_DTYPE = np.uint16
 # observation_space = spaces.Box(low=0, high=254, shape=(144,160, 1), dtype=np.int8)
 
 # Was 2, divides screen resolution down, less detail but faster performance
-SCREEN_FACTOR = 4
+SCREEN_FACTOR = 2
 # the -8 is to remove the bottom banner of the screen
 quarter_res_screen_obs_space = spaces.Box(low=0, high=255, shape=((144-8)//SCREEN_FACTOR, (160)//SCREEN_FACTOR, 1), dtype=np.uint8)
 

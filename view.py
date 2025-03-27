@@ -66,7 +66,7 @@ def main():
 
         # Create a PIL Image object
         image = Image.fromarray(image_2d)
-        print(image)
+        print(f"IMAGE DIMS: {w, h}")
 
         image.save("obs.png")
         return
