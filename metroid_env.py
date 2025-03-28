@@ -82,7 +82,10 @@ ROM_PATH = "MetroidII.gb"
 class MetroidEnv(gym.Env):
     # I think this is about 2 hours of "real life playing"
     # DEFAULT_EPISODE_LENGTH = 400000
-    DEFAULT_EPISODE_LENGTH = 75000
+
+    #  Was 75_000, should decrease eval time if shorter, which should increase
+    #  SPS (?)
+    DEFAULT_EPISODE_LENGTH = 50000
 
     # emulation_speed_factor overrides the "debug" emulation speed
     def __init__(self,  
@@ -93,9 +96,9 @@ class MetroidEnv(gym.Env):
             render_mode='rgb_array',
             num_to_tick=DEFAULT_NUM_TO_TICK,
             # training params
-            stale_truncate_limit=1000,  # End game after this many steps
-            reset_exploration_count=40, # reset the exploration cache after this many explored coordinates
-            lack_of_exploration_threshold=500,  # Wait this many steps before we start punishment
+            stale_truncate_limit=1000,  # End game after this many stale steps
+            lack_of_exploration_threshold=750,  # Wait this many steps before we start punishment
+            reset_exploration_count=80, # reset the exploration cache after this many explored coordinates
             # Pufferlib options
             buf=None): 
 
