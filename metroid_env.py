@@ -96,8 +96,8 @@ class MetroidEnv(gym.Env):
             render_mode='rgb_array',
             num_to_tick=DEFAULT_NUM_TO_TICK,
             # training params
-            stale_truncate_limit=1000,  # End game after this many stale steps
-            lack_of_exploration_threshold=750,  # Wait this many steps before we start punishment
+            stale_truncate_limit=2000,  # End game after this many stale steps
+            lack_of_exploration_threshold=2000,  # Wait this many steps before we start punishment
             reset_exploration_count=80, # reset the exploration cache after this many explored coordinates
             # Pufferlib options
             buf=None): 
