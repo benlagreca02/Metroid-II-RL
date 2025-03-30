@@ -18,6 +18,7 @@ def main():
     parser.add_argument('-g', '--generate_image', action='store_true', help='Generates a png of the observation space') 
     parser.add_argument('-s', '--shape', action='store_true', help="prints shape of observations")
     parser.add_argument('-w', '--reward', action='store_true', help="print reward")
+    parser.add_argument('-e', '--reset', action='store_true', help='reset after 100 steps')
     
     args = parser.parse_args()
     
@@ -45,6 +46,8 @@ def main():
         print("Printing shape of observations")
     if args.reward:
         print("Printing rewards")
+    if args.reset:
+        print("quick resetting enabled")
 
     import gymnasium as gym
     from stable_baselines3 import PPO
@@ -95,7 +98,9 @@ def main():
     
     net_reward = 0
     truncated = False
+    step = 0
     while not truncated:
+        step += 1
         # action, _states = model.predict(obs)
         action, _states = action_getter(obs)
         obs, rewards, dones, truncated, info = env.step(action)
@@ -112,6 +117,12 @@ def main():
         if args.reward:
             net_reward += rewards
             print(f"Reward: {rewards}\tNet: {net_reward}")
+        if args.reset and step >= 100:
+            print("RESETTING")
+            step = 0
+            env.reset()
+
+
     print("Truncated!")
 
 

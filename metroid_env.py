@@ -15,6 +15,8 @@ import cv2
 # All of the button constants
 from actions_lists import *
 
+import os
+import random
 
 # For the (currently unimplemented) tile based, observation space
 TILE_NUM_BYTES = 16
@@ -54,6 +56,8 @@ MAJOR_UPGRADES_OBS = "major_upgrades"
 #        8: Missile
 BEAM_OBS = "beam"
 
+SAVE_STATE_DICT = 'checkpoints'
+
 observation_space = spaces.Dict({
     SCREEN_OBS: quarter_res_screen_obs_space,
     # TODO change to be "total health percent" so its a flaot like missiles (?)
@@ -85,7 +89,7 @@ class MetroidEnv(gym.Env):
 
     #  Was 75_000, should decrease eval time if shorter, which should increase
     #  SPS (?)
-    DEFAULT_EPISODE_LENGTH = 50000
+    DEFAULT_EPISODE_LENGTH = 40_000
 
     # emulation_speed_factor overrides the "debug" emulation speed
     def __init__(self,  
@@ -96,9 +100,10 @@ class MetroidEnv(gym.Env):
             render_mode='rgb_array',
             num_to_tick=DEFAULT_NUM_TO_TICK,
             # training params
-            stale_truncate_limit=2000,  # End game after this many stale steps
-            lack_of_exploration_threshold=2000,  # Wait this many steps before we start punishment
-            reset_exploration_count=80, # reset the exploration cache after this many explored coordinates
+            random_state_load_freq = 0.25,
+            stale_truncate_limit=5000,  # End game after this many stale steps
+            lack_of_exploration_threshold=0,  # Wait this many steps before we start punishment
+            reset_exploration_count=70, # reset the exploration cache after this many explored coordinates
             # Pufferlib options
             buf=None): 
 
@@ -141,6 +146,12 @@ class MetroidEnv(gym.Env):
         self.reset_exploration_count = reset_exploration_count
         self.lack_of_exploration_threshold = lack_of_exploration_threshold
 
+        self.random_state_load_freq = random_state_load_freq
+
+        # For random point env starting
+        if os.path.exists(SAVE_STATE_DICT):
+            self.state_files = [os.path.join(SAVE_STATE_DICT, name) for name in os.listdir(SAVE_STATE_DICT)]
+
 
     def _get_screen_obs(self): 
         # -8 is to remove the "bar" from the bottom of the screen
@@ -149,6 +160,7 @@ class MetroidEnv(gym.Env):
 
         h, w = rgb.shape[:2]
         # less input data -> faster training
+        # MAY BE REALLY SLOW
         smaller = cv2.resize(rgb, (w//SCREEN_FACTOR, h//SCREEN_FACTOR))
 
         # cast to grayscale
@@ -283,8 +295,8 @@ class MetroidEnv(gym.Env):
         should_check_exploration_reset = self.reset_exploration_count > 0
         if should_check_exploration_reset and len(self.explored) > self.reset_exploration_count:
             self.explored = set()
-            # add current point to set, but don't give reward, we're already
-            # here
+            # add current point to set
+            # doesn't give reward, we're already here
             self._calc_and_update_exploration()
 
         # Stale checking
@@ -398,13 +410,26 @@ class MetroidEnv(gym.Env):
             return exploration_reward
         
         self.stale_exploration_count += 1 
-        should_punish = self.stale_exploration_count > self.lack_of_exploration_threshold 
+        if self.lack_of_exploration_threshold == 0:
+            should_punish = False
+        else:
+            should_punish = self.stale_exploration_count > self.lack_of_exploration_threshold 
 
         return lack_of_exploration_punishment if should_punish else 0
 
 
     def reset(self, **kwargs):
         self.pyboy.game_wrapper.reset_game()
+
+        # OCCASIONALLY LOAD OTHER START POINTS
+        random_num = random.random()
+        if(random_num < self.random_state_load_freq):
+            # Load the save state
+            with open(random.choice(self.state_files), "rb") as f:
+                self.pyboy.load_state(f)
+
+
+
         info = {}
         self.explored = set()
         self._calc_and_update_exploration()
