@@ -18,19 +18,11 @@ from actions_lists import *
 import os
 import random
 
-# For the (currently unimplemented) tile based, observation space
-TILE_NUM_BYTES = 16
-DIGEST_SIZE_BYTES = 2
-DIGEST_DTYPE = np.uint16
-# observation_space = spaces.Box(low=0, high=65535, shape=(17,20,1), dtype=DIGEST_DTYPE)
-
 # whole screen black and white observation space example
 # observation_space = spaces.Box(low=0, high=254, shape=(144,160, 1), dtype=np.int8)
 
-# Was 2, divides screen resolution down, less detail but faster performance
-SCREEN_FACTOR = 2
 # the -8 is to remove the bottom banner of the screen
-quarter_res_screen_obs_space = spaces.Box(low=0, high=255, shape=((144-8)//SCREEN_FACTOR, (160)//SCREEN_FACTOR, 1), dtype=np.uint8)
+quarter_res_screen_obs_space = spaces.Box(low=0, high=255, shape=((144-8), (160), 1), dtype=np.uint8)
 
 SCREEN_OBS = "screen"
 HEALTH_OBS = "health"
@@ -160,10 +152,11 @@ class MetroidEnv(gym.Env):
 
         h, w = rgb.shape[:2]
         # less input data -> faster training
-        # MAY BE REALLY SLOW
-        smaller = cv2.resize(rgb, (w//SCREEN_FACTOR, h//SCREEN_FACTOR))
 
-        # cast to grayscale
+        # MAY BE REALLY SLOW
+        # smaller = cv2.resize(rgb, (w//SCREEN_FACTOR, h//SCREEN_FACTOR))
+
+        # cast to grayscale, way faster than Pillow's grayscale function
         gray = cv2.cvtColor(smaller, cv2.COLOR_RGB2GRAY)
 
         # To make Gymnasium happy, must be 3d with 1 val in z dim
