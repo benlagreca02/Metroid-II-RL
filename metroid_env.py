@@ -22,7 +22,8 @@ import random
 # observation_space = spaces.Box(low=0, high=254, shape=(144,160, 1), dtype=np.int8)
 
 # the -8 is to remove the bottom banner of the screen
-quarter_res_screen_obs_space = spaces.Box(low=0, high=255, shape=((144-8), (160), 1), dtype=np.uint8)
+SCALE_FACTOR = 2
+quarter_res_screen_obs_space = spaces.Box(low=0, high=255, shape=((144-8)//SCALE_FACTOR, (160//SCALE_FACTOR), 1), dtype=np.uint8)
 
 SCREEN_OBS = "screen"
 HEALTH_OBS = "health"
@@ -48,7 +49,8 @@ MAJOR_UPGRADES_OBS = "major_upgrades"
 #        8: Missile
 BEAM_OBS = "beam"
 
-SAVE_STATE_DICT = 'checkpoints'
+# TODO FIX HACK
+SAVE_STATE_DICT = '../Metroid-II-RL/checkpoints'
 
 observation_space = spaces.Dict({
     SCREEN_OBS: quarter_res_screen_obs_space,
@@ -141,8 +143,11 @@ class MetroidEnv(gym.Env):
         self.random_state_load_freq = random_state_load_freq
 
         # For random point env starting
-        if os.path.exists(SAVE_STATE_DICT):
-            self.state_files = [os.path.join(SAVE_STATE_DICT, name) for name in os.listdir(SAVE_STATE_DICT)]
+        if not os.path.exists(SAVE_STATE_DICT):
+            raise ModuleNotFoundError("Couldn't find checkpoints folder!")
+        self.state_files = [os.path.join(SAVE_STATE_DICT, name) for name in os.listdir(SAVE_STATE_DICT)]
+        print(f"Found state files: {self.state_files}")
+
 
 
     def _get_screen_obs(self): 
@@ -156,7 +161,11 @@ class MetroidEnv(gym.Env):
         # MAY BE REALLY SLOW
         # smaller = cv2.resize(rgb, (w//SCREEN_FACTOR, h//SCREEN_FACTOR))
 
+        # THIS is the way pufferlib does it, get every N pixels
+        smaller = rgb[::SCALE_FACTOR, ::SCALE_FACTOR]
+
         # cast to grayscale, way faster than Pillow's grayscale function
+        # gray = cv2.cvtColor(smaller, cv2.COLOR_RGB2GRAY)
         gray = cv2.cvtColor(smaller, cv2.COLOR_RGB2GRAY)
 
         # To make Gymnasium happy, must be 3d with 1 val in z dim
