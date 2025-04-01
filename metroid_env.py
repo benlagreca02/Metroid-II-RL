@@ -94,11 +94,12 @@ class MetroidEnv(gym.Env):
             render_mode='rgb_array',
             num_to_tick=DEFAULT_NUM_TO_TICK,
             # training params
-            random_state_load_freq = 0.35,
+            random_state_load_freq = 0.40,
             stale_truncate_limit=5000,  # End game after this many stale steps
             lack_of_exploration_threshold=0,  # Wait this many steps before we start punishment
             # being pretty effecient, ship to "shaft" area is 90ish 
             reset_exploration_count=200, # reset the exploration cache after this many explored coordinates
+            framestack=True,
             # Pufferlib options
             buf=None): 
 
@@ -127,6 +128,11 @@ class MetroidEnv(gym.Env):
         # dict of buttons, and True/False for if they're being held or not
         self._currently_held = {button: False for button in BUTTONS}
 
+        # Framestacking logic
+        self.framestack = framestack
+        if self.framestack:
+            self.old_frame = self._get_screen()
+
         # Cache the current coordinate
         self.explored = set()
         self._calc_and_update_exploration()
@@ -143,15 +149,18 @@ class MetroidEnv(gym.Env):
 
         self.random_state_load_freq = random_state_load_freq
 
-        # For random point env starting
-        if not os.path.exists(SAVE_STATE_DICT):
-            raise ModuleNotFoundError("Couldn't find checkpoints folder!")
-        self.state_files = [os.path.join(SAVE_STATE_DICT, name) for name in os.listdir(SAVE_STATE_DICT)]
-        print(f"Found state files: {self.state_files}")
+        if self.random_state_load_freq != 0:
+            print("Loading states for random state loading...")
+            # For random point env starting
+            if not os.path.exists(SAVE_STATE_DICT):
+                raise ModuleNotFoundError("Couldn't find checkpoints folder!")
+            self.state_files = [os.path.join(SAVE_STATE_DICT, name) for name in os.listdir(SAVE_STATE_DICT)]
+            print(f"Found state files: {self.state_files}")
 
-
-
-    def _get_screen_obs(self): 
+    def _get_screen(self):
+        '''
+        fetches and preprocesses the screen
+        '''
         # -8 is to remove the "bar" from the bottom of the screen
         # 3 at end to only get RGB, we don't want alpha channel
         rgb = self.pyboy.screen.ndarray[:-8, :, :3]
@@ -171,8 +180,20 @@ class MetroidEnv(gym.Env):
 
         # To make Gymnasium happy, must be 3d with 1 val in z dim
         gray = np.reshape(gray, gray.shape + (1,))
-
         return gray
+
+    def _get_screen_obs(self): 
+        ''' sets up the actual screen portion of the observation '''
+        frame = self._get_screen()
+
+        # concat with old frame
+        if self.framestack:
+            obs = np.concatenate((frame, self.old_frame), axis=0)
+            self.old_frame = frame
+        else:
+            obs = frame
+
+        return obs
     
 
     def _get_obs(self):
