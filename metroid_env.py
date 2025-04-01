@@ -94,10 +94,11 @@ class MetroidEnv(gym.Env):
             render_mode='rgb_array',
             num_to_tick=DEFAULT_NUM_TO_TICK,
             # training params
-            random_state_load_freq = 0.25,
+            random_state_load_freq = 0.35,
             stale_truncate_limit=5000,  # End game after this many stale steps
             lack_of_exploration_threshold=0,  # Wait this many steps before we start punishment
-            reset_exploration_count=70, # reset the exploration cache after this many explored coordinates
+            # being pretty effecient, ship to "shaft" area is 90ish 
+            reset_exploration_count=200, # reset the exploration cache after this many explored coordinates
             # Pufferlib options
             buf=None): 
 
