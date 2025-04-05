@@ -94,11 +94,12 @@ class MetroidEnv(gym.Env):
             render_mode='rgb_array',
             num_to_tick=DEFAULT_NUM_TO_TICK,
             # training params
-            random_state_load_freq = 0.35,
+            random_state_load_freq = 0,
             stale_truncate_limit=5000,  # End game after this many stale steps
             lack_of_exploration_threshold=0,  # Wait this many steps before we start punishment
             # being pretty effecient, ship to "shaft" area is 90ish 
             reset_exploration_count=200, # reset the exploration cache after this many explored coordinates
+
             # Pufferlib options
             buf=None): 
 
@@ -321,13 +322,13 @@ class MetroidEnv(gym.Env):
         Includes the calculation of exploration reward 
         '''
         # TODO could convert this to a dictionary at some point?
-        missileWeight = 1
+        missileWeight = -0.01
 
         # Losing health is pretty bad
-        healthWeight = 10
+        healthWeight = 0.1
 
         # AMAZING, so make it giant
-        gmcWeight = 1000
+        gmcWeight = 10
 
         mem_state = self._get_mem_state_dict()
         # calculate "deltas" of memory values
@@ -378,7 +379,7 @@ class MetroidEnv(gym.Env):
         # Reward multiplier for hitting a new coordinate
         # reward = factor * len(explored)
         # May become oversaturated at some point...
-        exploration_reward = 1
+        exploration_reward = 0.005
 
         # Punish this much every step after threshold
         # Arbitrary, but very very small
