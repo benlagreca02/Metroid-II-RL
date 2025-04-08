@@ -1,6 +1,7 @@
 # This code is from the pyboy example for how to create a gymnasium environment
 import sys
 from pyboy import PyBoy
+from pyboy.utils import dec_to_bcd
 from pyboy.utils import WindowEvent
 
 # Adopted from https://github.com/NicoleFaye/PyBoy/blob/rl-test/PokemonPinballEnv.py
@@ -97,8 +98,10 @@ class MetroidEnv(gym.Env):
             random_state_load_freq = 0,
             stale_truncate_limit=5000,  # End game after this many stale steps
             lack_of_exploration_threshold=0,  # Wait this many steps before we start punishment
-            # being pretty effecient, ship to "shaft" area is 90ish 
-            reset_exploration_count=200, # reset the exploration cache after this many explored coordinates
+            # being pretty effecient, spawn to "shaft" area is 90ish exploration coords
+            reset_exploration_count=0, # reset the exploration cache after this many explored coordinates
+
+            invincibility=True,
 
             # Pufferlib options
             buf=None): 
@@ -128,6 +131,9 @@ class MetroidEnv(gym.Env):
         # dict of buttons, and True/False for if they're being held or not
         self._currently_held = {button: False for button in BUTTONS}
 
+        # Needs to be set before get mem state dict called
+        self.invincibility = invincibility
+
         # Cache the current coordinate
         self.explored = set()
         self._calc_and_update_exploration()
@@ -148,8 +154,10 @@ class MetroidEnv(gym.Env):
         if not os.path.exists(SAVE_STATE_DICT):
             raise ModuleNotFoundError("Couldn't find checkpoints folder!")
         self.state_files = [os.path.join(SAVE_STATE_DICT, name) for name in os.listdir(SAVE_STATE_DICT)]
-        print(f"Found state files: {self.state_files}")
+        # print(f"Found state files: {self.state_files}")
 
+
+        
 
 
     def _get_screen_obs(self): 
@@ -246,6 +254,17 @@ class MetroidEnv(gym.Env):
                 'beam': self.pyboy.game_wrapper.beam,
                 'gmc': self.pyboy.game_wrapper.global_metroid_count,
         }
+
+        if self.invincibility:
+            # TODO FIXME HACK, should do this though the game wrapper, but I just want
+            # to get this going fast
+            self.pyboy.memory[0xD051] = dec_to_bcd(99)
+            vals_of_interest['hp'] = 99
+            # TODO FIXME when missile tanks get involved, this will be different
+            self.pyboy.memory[0xD053] = dec_to_bcd(30)
+            vals_of_interest['missiles'] = 30
+
+
         return vals_of_interest
 
 
