@@ -19,6 +19,8 @@ from actions_lists import *
 import os
 import random
 
+import pickle
+
 # whole screen black and white observation space example
 # observation_space = spaces.Box(low=0, high=254, shape=(144,160, 1), dtype=np.int8)
 
@@ -50,8 +52,8 @@ MAJOR_UPGRADES_OBS = "major_upgrades"
 #        8: Missile
 BEAM_OBS = "beam"
 
-# TODO FIX HACK
-SAVE_STATE_DICT = '../Metroid-II-RL/checkpoints'
+# TODO FIX HACK just to get it working with puffer
+RANDOM_CHECKPOINT_SAVESTATES = '../Metroid-II-RL/random_checkpoints'
 
 observation_space = spaces.Dict({
     SCREEN_OBS: quarter_res_screen_obs_space,
@@ -83,8 +85,9 @@ class MetroidEnv(gym.Env):
     # DEFAULT_EPISODE_LENGTH = 400000
 
     #  Was 75_000, should decrease eval time if shorter, which should increase
-    #  SPS (?)
+    #  SPS (?), 
     DEFAULT_EPISODE_LENGTH = 40_000
+    CHECKPOINT_DIR = 'checkpoints'
 
     # emulation_speed_factor overrides the "debug" emulation speed
     def __init__(self,  
@@ -96,12 +99,13 @@ class MetroidEnv(gym.Env):
             num_to_tick=DEFAULT_NUM_TO_TICK,
             # training params
             random_state_load_freq = 0,
-            stale_truncate_limit=5000,  # End game after this many stale steps
+            stale_truncate_limit=0,  # End game after this many stale steps
             lack_of_exploration_threshold=0,  # Wait this many steps before we start punishment
             # being pretty effecient, spawn to "shaft" area is 90ish exploration coords
             reset_exploration_count=0, # reset the exploration cache after this many explored coordinates
 
             invincibility=True,
+            progress_checkpoints=True,
 
             # Pufferlib options
             buf=None): 
@@ -151,11 +155,13 @@ class MetroidEnv(gym.Env):
         self.random_state_load_freq = random_state_load_freq
 
         # For random point env starting
-        if not os.path.exists(SAVE_STATE_DICT):
-            raise ModuleNotFoundError("Couldn't find checkpoints folder!")
-        self.state_files = [os.path.join(SAVE_STATE_DICT, name) for name in os.listdir(SAVE_STATE_DICT)]
-        # print(f"Found state files: {self.state_files}")
+        if not os.path.exists(RANDOM_CHECKPOINT_SAVESTATES):
+            raise ModuleNotFoundError("Couldn't find random checkpoints folder!")
+        self.state_files = [os.path.join(RANDOM_CHECKPOINT_SAVESTATES, name) for name in os.listdir(RANDOM_CHECKPOINT_SAVESTATES)]
 
+
+        # flags for keeping track of progress
+        
 
         
 
@@ -391,6 +397,27 @@ class MetroidEnv(gym.Env):
 
         return reward
 
+    def load_checkpoint(self, base_filename):
+        state_filename = base_filename + '.state'
+        set_filename = base_filename + '.set'
+        # Load the 
+        with open(state_filename, "wb") as f:
+            self.pyboy.load_state(f)
+
+        with open(set_filename, 'wb') as file:
+            self.explored = pickle.load(file)
+
+
+    # really only called by view script
+    def save_checkpoint(self, base_filename):
+        state_filename = base_filename + '.state'
+        set_filename = base_filename + '.set'
+        with open(state_filename, "wb") as f:
+            self.pyboy.save_state(f)
+
+        # dump explored 
+        with open(set_filename, 'wb') as file:
+            pickle.dump(self.explored, file)
 
 
     def _calc_and_update_exploration(self):
@@ -450,6 +477,9 @@ class MetroidEnv(gym.Env):
             # Load the save state
             with open(random.choice(self.state_files), "rb") as f:
                 self.pyboy.load_state(f)
+
+
+        # checkpoint areas
 
 
 

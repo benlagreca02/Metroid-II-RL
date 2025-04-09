@@ -7,6 +7,8 @@ def get_action_from_model(model, obs):
     action, _states = model.predict(obs)
     return action, _states
         
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('model_path', nargs='?', type=str, help='Path to the model to be loaded')
@@ -19,6 +21,8 @@ def main():
     parser.add_argument('-s', '--shape', action='store_true', help="prints shape of observations")
     parser.add_argument('-w', '--reward', action='store_true', help="print reward")
     parser.add_argument('-e', '--reset', action='store_true', help='reset after 100 steps')
+    parser.add_argument('-k', '--checkpoint', action='store_true', help='generate checkpoint when process killed')
+    parser.add_argument('-l', '--load_checkpoint', action='store_true', help='load from checkpoint')
     
     args = parser.parse_args()
     
@@ -90,37 +94,66 @@ def main():
 
 
     obs, info = env.reset()
-    # Try catch is a little redundant, but this makes it quit a lot faster and
-    # more reliably
 
+    # for printing long things
     import numpy as np
     np.set_printoptions(linewidth=np.inf)
     
+    # fields for tracking data for printing
     net_reward = 0
     truncated = False
     step = 0
-    while not truncated:
-        step += 1
-        # action, _states = model.predict(obs)
-        action, _states = action_getter(obs)
-        obs, rewards, dones, truncated, info = env.step(action)
-        if args.area:
-            print(f"AREA: \n{env.game_area()}")
-        if args.debug:
-            print(env.pyboy.game_wrapper)
-        if args.coords:
-            print(f"Coords: {env.getAllCoordData()}\tLen explored: {len(env.explored)}")
-        if args.observation:
-            print(f"\n{obs}")
-        if args.shape:
-            print(f"{[(k, type(o)) for k,o in obs.items()]}")
-        if args.reward:
-            net_reward += rewards
-            print(f"Reward: {rewards}\tNet: {net_reward}")
-        if args.reset and step >= 100:
-            print("RESETTING")
-            step = 0
-            env.reset()
+
+
+    if args.load_checkpoint:
+        if not os.path.exists(env.CHECKPOINT_DIR):
+            raise ModuleNotFoundError("Couldn't find checkpoints folder!")
+        state_files = [os.path.join(env.CHECKPOINT_DIR, name) for name in os.listdir(RANDOM_CHECKPOINT_SAVESTATES)]
+        print(f"FILES: {state_files}")
+        # load files 
+        base_name = input("give a base name")
+        base_path = os.path.join(env.CHECKPOINT_DIR, base_path)
+        print(f"Loading {base_path}")
+        env.load_checkpoint(base_path)
+
+
+
+
+    try:
+        while not truncated:
+            step += 1
+            # action, _states = model.predict(obs)
+            action, _states = action_getter(obs)
+            obs, rewards, dones, truncated, info = env.step(action)
+            if args.area:
+                print(f"AREA: \n{env.game_area()}")
+            if args.debug:
+                print(env.pyboy.game_wrapper)
+            if args.coords:
+                print(f"Coords: {env.getAllCoordData()}\tLen explored: {len(env.explored)}")
+            if args.observation:
+                print(f"\n{obs}")
+            if args.shape:
+                print(f"{[(k, type(o)) for k,o in obs.items()]}")
+            if args.reward:
+                net_reward += rewards
+                print(f"Reward: {rewards}\tNet: {net_reward}")
+            if args.reset and step >= 100:
+                print("RESETTING")
+                step = 0
+                env.reset()
+    except KeyboardInterrupt:
+        if args.checkpoint:
+            idx = int(input("Enter index: "))
+            name = input("Enter name: ")
+            base_filename = f"{idx}_{name}"
+
+            fullpath = os.path.join(env.CHECKPOINT_DIR, base_filename)
+
+            print(f"fullpath: {fullpath}")
+            env.save_checkpoint(fullpath)
+
+            print(f"saved {base_filename} files! (.set and .state)")
 
 
     print("Truncated!")
