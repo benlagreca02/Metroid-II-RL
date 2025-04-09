@@ -53,7 +53,6 @@ MAJOR_UPGRADES_OBS = "major_upgrades"
 BEAM_OBS = "beam"
 
 # TODO FIX HACK just to get it working with puffer
-RANDOM_CHECKPOINT_SAVESTATES = '../Metroid-II-RL/random_checkpoints'
 
 observation_space = spaces.Dict({
     SCREEN_OBS: quarter_res_screen_obs_space,
@@ -87,7 +86,10 @@ class MetroidEnv(gym.Env):
     #  Was 75_000, should decrease eval time if shorter, which should increase
     #  SPS (?), 
     DEFAULT_EPISODE_LENGTH = 40_000
+
+    # For doing checkpoint based training
     CHECKPOINT_DIR = 'checkpoints'
+    RANDOM_CHECKPOINT_SAVESTATES = '../Metroid-II-RL/random_checkpoints'
 
     # emulation_speed_factor overrides the "debug" emulation speed
     def __init__(self,  
@@ -155,9 +157,10 @@ class MetroidEnv(gym.Env):
         self.random_state_load_freq = random_state_load_freq
 
         # For random point env starting
-        if not os.path.exists(RANDOM_CHECKPOINT_SAVESTATES):
+        if not os.path.exists(self.RANDOM_CHECKPOINT_SAVESTATES):
             raise ModuleNotFoundError("Couldn't find random checkpoints folder!")
-        self.state_files = [os.path.join(RANDOM_CHECKPOINT_SAVESTATES, name) for name in os.listdir(RANDOM_CHECKPOINT_SAVESTATES)]
+        self.state_files = [os.path.join(self.RANDOM_CHECKPOINT_SAVESTATES,
+                                         name) for name in os.listdir(self.RANDOM_CHECKPOINT_SAVESTATES)]
 
 
         # flags for keeping track of progress
@@ -401,10 +404,11 @@ class MetroidEnv(gym.Env):
         state_filename = base_filename + '.state'
         set_filename = base_filename + '.set'
         # Load the 
-        with open(state_filename, "wb") as f:
+        with open(state_filename, "rb") as f:
+            print(f"loading file @ {state_filename}\tf:{f}")
             self.pyboy.load_state(f)
 
-        with open(set_filename, 'wb') as file:
+        with open(set_filename, 'rb') as file:
             self.explored = pickle.load(file)
 
 

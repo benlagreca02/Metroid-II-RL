@@ -8,7 +8,6 @@ def get_action_from_model(model, obs):
     return action, _states
         
 
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('model_path', nargs='?', type=str, help='Path to the model to be loaded')
@@ -22,6 +21,7 @@ def main():
     parser.add_argument('-w', '--reward', action='store_true', help="print reward")
     parser.add_argument('-e', '--reset', action='store_true', help='reset after 100 steps')
     parser.add_argument('-k', '--checkpoint', action='store_true', help='generate checkpoint when process killed')
+    # TODO could make this actually accept hte value instead of prompt for it
     parser.add_argument('-l', '--load_checkpoint', action='store_true', help='load from checkpoint')
     
     args = parser.parse_args()
@@ -104,15 +104,17 @@ def main():
     truncated = False
     step = 0
 
+    env.step(0)
 
     if args.load_checkpoint:
         if not os.path.exists(env.CHECKPOINT_DIR):
             raise ModuleNotFoundError("Couldn't find checkpoints folder!")
-        state_files = [os.path.join(env.CHECKPOINT_DIR, name) for name in os.listdir(RANDOM_CHECKPOINT_SAVESTATES)]
+        state_files = [os.path.join(env.CHECKPOINT_DIR, name) for name in
+                       os.listdir(env.CHECKPOINT_DIR)]
         print(f"FILES: {state_files}")
         # load files 
-        base_name = input("give a base name")
-        base_path = os.path.join(env.CHECKPOINT_DIR, base_path)
+        base_name = input("give a base name (just the filename, without .state or .set: ")
+        base_path = os.path.join(env.CHECKPOINT_DIR, base_name)
         print(f"Loading {base_path}")
         env.load_checkpoint(base_path)
 
