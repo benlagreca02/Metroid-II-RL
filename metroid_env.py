@@ -164,8 +164,11 @@ class MetroidEnv(gym.Env):
 
 
         # flags for keeping track of progress
-        
-
+        # increments as we make progress through the game
+        # 1: made it into the cave
+        # 2: made it past the enemies
+        # 3: made it to the corner of doom
+        self.progress = 0
         
 
 
@@ -340,6 +343,25 @@ class MetroidEnv(gym.Env):
         # Calculate the reward
         reward = self._calculate_reward()
 
+        # update progress (very rough)
+        (ax, ay), (px, py) = self.getAllCoordData()
+        # TODO could make this a lot cleaner
+        if self.progress == 0:
+            # check if we're in the cave entrance
+            if ax == 4 and ay == 4 and 27 <= px <= 60 and 90 <= py <= 132:
+                self.progress += 1
+        if self.progress == 1:
+            # check if we made it past the enemies
+            if ax == 7 and ay == 4 and 0 <= px <= 100 and 142 <= py <= 212:
+                self.progress += 1
+        if self.progress == 2:
+            # check if we made it down the shaft 
+            if ax == 7 and ay == 4 and 0 <= px <= 100 and 142 <= py <= 212:
+                self.progress += 1
+
+
+
+
         return obs, reward, done, truncated, info
 
 
@@ -483,7 +505,7 @@ class MetroidEnv(gym.Env):
                 self.pyboy.load_state(f)
 
 
-        # checkpoint areas
+        
 
 
 

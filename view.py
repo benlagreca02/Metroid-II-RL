@@ -23,6 +23,7 @@ def main():
     parser.add_argument('-k', '--checkpoint', action='store_true', help='generate checkpoint when process killed')
     # TODO could make this actually accept hte value instead of prompt for it
     parser.add_argument('-l', '--load_checkpoint', action='store_true', help='load from checkpoint')
+    parser.add_argument('-p', '--progress', action='store_true', help='print progress of agent')
     
     args = parser.parse_args()
     
@@ -52,6 +53,8 @@ def main():
         print("Printing rewards")
     if args.reset:
         print("quick resetting enabled")
+    if args.progress:
+        print("printing agent progress")
 
     import gymnasium as gym
     from stable_baselines3 import PPO
@@ -144,6 +147,8 @@ def main():
                 print("RESETTING")
                 step = 0
                 env.reset()
+            if args.progress:
+                print(f"Progress: {env.progress}")
     except KeyboardInterrupt:
         if args.checkpoint:
             idx = int(input("Enter index: "))
