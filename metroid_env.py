@@ -88,7 +88,7 @@ class MetroidEnv(gym.Env):
     DEFAULT_EPISODE_LENGTH = 40_000
 
     # For doing checkpoint based training
-    CHECKPOINT_DIR = 'checkpoints/'
+    CHECKPOINT_DIR = '../Metroid-II-RL/checkpoints/'
     RANDOM_CHECKPOINT_SAVESTATES = '../Metroid-II-RL/random_checkpoints'
 
     # emulation_speed_factor overrides the "debug" emulation speed
@@ -101,7 +101,7 @@ class MetroidEnv(gym.Env):
             num_to_tick=DEFAULT_NUM_TO_TICK,
             # training params
             random_state_load_freq = 0,
-            stale_truncate_limit=0,  # End game after this many stale steps
+            stale_truncate_limit=5000,  # End game after this many stale steps
             lack_of_exploration_threshold=0,  # Wait this many steps before we start punishment
             # being pretty effecient, spawn to "shaft" area is 90ish exploration coords
             reset_exploration_count=0, # reset the exploration cache after this many explored coordinates
@@ -168,7 +168,8 @@ class MetroidEnv(gym.Env):
         # 1: made it into the cave
         # 2: made it past the enemies
         # 3: made it to the corner of doom
-        self.progress = 0
+        # By setting to -1, checks never happen
+        self.progress = 0 if progress_checkpoints else -1
         
 
 
@@ -350,11 +351,11 @@ class MetroidEnv(gym.Env):
             # check if we're in the cave entrance
             if ax == 4 and ay == 4 and 27 <= px <= 60 and 90 <= py <= 132:
                 self.progress += 1
-        if self.progress == 1:
+        elif self.progress == 1:
             # check if we made it past the enemies
             if ax == 7 and ay == 4 and 0 <= px <= 100 and 142 <= py <= 212:
                 self.progress += 1
-        if self.progress == 2:
+        elif self.progress == 2:
             # check if we made it down the shaft 
             if ax == 10 and ay == 6 and 77 <= px <= 163 and 10 <= py <= 84:
                 self.progress += 1
@@ -507,13 +508,13 @@ class MetroidEnv(gym.Env):
 
         if self.progress == 1:
             # load the cave checkpoint
-            load_checkpoint(self.CHECKPOINT_DIR + "1_caveEntrance")
+            self.load_checkpoint(self.CHECKPOINT_DIR + "1_caveEntrance")
         if self.progress == 2:
             # load the cave checkpoint
-            load_checkpoint(self.CHECKPOINT_DIR + "2_afterEnemies")
+            self.load_checkpoint(self.CHECKPOINT_DIR + "2_afterEnemies")
         if self.progress == 3:
             # load the cave checkpoint
-            load_checkpoint(self.CHECKPOINT_DIR + "3_shaft")
+            self.load_checkpoint(self.CHECKPOINT_DIR + "3_shaft")
 
 
         return self._get_obs(), info
