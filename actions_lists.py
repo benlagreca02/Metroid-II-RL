@@ -34,6 +34,13 @@ SHOOT_UP_LEFT = [*SHOOT, *UP, *LEFT]
 #  shot
 SHOOT_DOWN = [*SHOOT, *DOWN]
 
+# PLEASE FIX IT
+JUMP_UP = [*JUMP, *DOWN]
+JUMP_DOWN = [*JUMP, *DOWN]
+JUMP_SHOOT_DOWN = [*SHOOT, *JUMP, *DOWN]
+
+
+
 ACTIONS = [
         NOP,
         SHOOT,
@@ -50,7 +57,10 @@ ACTIONS = [
         SHOOT_UP,
         SHOOT_UP_RIGHT,
         SHOOT_UP_LEFT,
-        SHOOT_DOWN
+        SHOOT_DOWN,
+        JUMP_UP,
+        JUMP_DOWN,
+        JUMP_SHOOT_DOWN
 ]
 
 # All possible buttons "on hardware"
