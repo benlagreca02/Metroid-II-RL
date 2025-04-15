@@ -347,19 +347,22 @@ class MetroidEnv(gym.Env):
         # update progress (very rough)
         (ax, ay), (px, py) = self.getAllCoordData()
         # TODO could make this a lot cleaner, and just better overall
+        # Specifically, the bounds checking
         if self.progress == 0:
             # check if we're in the cave entrance
             if ax == 4 and ay == 4 and 27 <= px <= 60 and 90 <= py <= 132:
+                print("Hit checkpoint 1!")
                 self.progress += 1
         elif self.progress == 1:
             # check if we made it past the enemies
             if ax == 7 and ay == 4 and 0 <= px <= 100 and 142 <= py <= 212:
                 self.progress += 1
+                print("Hit checkpoint 2!")
         elif self.progress == 2:
             # check if we made it down the shaft 
             if ax == 10 and ay == 6 and 77 <= px <= 163 and 10 <= py <= 84:
                 self.progress += 1
-
+                print("Hit checkpoint 3!")
 
         return obs, reward, done, truncated, info
 

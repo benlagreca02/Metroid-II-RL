@@ -3,9 +3,8 @@ from pyboy.utils import WindowEvent
 # Each "action" is a list of buttons to press at once. VERY important to be able
 # to press more than one button at once for metroid
 
-# A is jump, B is shoot
+# A is jump, B is shoot, select switches between missile and 
 
-# Thanks to capnspacehook for action space
 NOP = [WindowEvent.PASS]
 SHOOT = [WindowEvent.PRESS_BUTTON_A]
 JUMP = [WindowEvent.PRESS_BUTTON_B]
@@ -17,29 +16,23 @@ RIGHT = [WindowEvent.PRESS_ARROW_RIGHT]
 
 SWITCH = [WindowEvent.PRESS_BUTTON_SELECT]
 
-# "Screw attack", jump and move to the side
-JUMP_LEFT = [*JUMP, *LEFT]
-JUMP_RIGHT = [*JUMP, *RIGHT]
-
-# Run and shoot
+SHOOT_UP = [*SHOOT, *UP]
+SHOOT_DOWN = [*SHOOT, *DOWN]
 SHOOT_LEFT = [*SHOOT, *LEFT]
 SHOOT_RIGHT = [*SHOOT, *RIGHT]
 
-# shoot upwards, and move while shooting upwards
-SHOOT_UP = [*SHOOT, *UP]
-SHOOT_UP_RIGHT = [*SHOOT, *UP, *RIGHT]
 SHOOT_UP_LEFT = [*SHOOT, *UP, *LEFT]
+SHOOT_UP_RIGHT = [*SHOOT, *UP, *RIGHT]
 
-#  VERY necessary for getting through vertical shafts where tiles need to be
-#  shot
-SHOOT_DOWN = [*SHOOT, *DOWN]
-
-# PLEASE FIX IT
-JUMP_UP = [*JUMP, *DOWN]
+JUMP_UP = [*JUMP, *UP]
 JUMP_DOWN = [*JUMP, *DOWN]
+JUMP_LEFT = [*JUMP, *LEFT]
+JUMP_RIGHT = [*JUMP, *RIGHT]
+
+JUMP_SHOOT_UP = [*SHOOT, *JUMP, *UP]
 JUMP_SHOOT_DOWN = [*SHOOT, *JUMP, *DOWN]
-
-
+JUMP_SHOOT_LEFT = [*SHOOT, *JUMP, *LEFT]
+JUMP_SHOOT_RIGHT = [*SHOOT, *JUMP, *RIGHT]
 
 ACTIONS = [
         NOP,
@@ -50,20 +43,24 @@ ACTIONS = [
         LEFT,
         RIGHT,
         SWITCH,
-        JUMP_LEFT,
-        JUMP_RIGHT,
+        SHOOT_UP,
+        SHOOT_DOWN,
         SHOOT_LEFT,
         SHOOT_RIGHT,
-        SHOOT_UP,
-        SHOOT_UP_RIGHT,
         SHOOT_UP_LEFT,
-        SHOOT_DOWN,
+        SHOOT_UP_RIGHT,
         JUMP_UP,
         JUMP_DOWN,
-        JUMP_SHOOT_DOWN
+        JUMP_LEFT,
+        JUMP_RIGHT,
+        JUMP_SHOOT_UP
+        JUMP_SHOOT_DOWN,
+        JUMP_SHOOT_LEFT
+        JUMP_SHOOT_RIGHT,
 ]
 
 # All possible buttons "on hardware"
+# These two lists are for determining how we want to press and release buttons 
 BUTTONS = [
     WindowEvent.PRESS_ARROW_UP,
     WindowEvent.PRESS_ARROW_DOWN,
