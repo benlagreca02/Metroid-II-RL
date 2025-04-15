@@ -53,9 +53,9 @@ ACTIONS = [
         JUMP_DOWN,
         JUMP_LEFT,
         JUMP_RIGHT,
-        JUMP_SHOOT_UP
+        JUMP_SHOOT_UP,
         JUMP_SHOOT_DOWN,
-        JUMP_SHOOT_LEFT
+        JUMP_SHOOT_LEFT,
         JUMP_SHOOT_RIGHT,
 ]
 
