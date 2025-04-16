@@ -68,7 +68,7 @@ observation_space = spaces.Dict({
 # How many frames to advance every action
 # 1 = every single frame
 # Frame skipping
-DEFAULT_NUM_TO_TICK = 4
+DEFAULT_NUM_TO_TICK = 8
 
 # Note if using pufferlib, must be in whatever folder you're running from.
 # example: if using demo.py, must put rom in foler alongside demo.py script
@@ -107,7 +107,7 @@ class MetroidEnv(gym.Env):
             reset_exploration_count=0, # reset the exploration cache after this many explored coordinates
 
             invincibility=True,
-            progress_checkpoints=True,
+            progress_checkpoints=False,
 
             # Pufferlib options
             buf=None): 
