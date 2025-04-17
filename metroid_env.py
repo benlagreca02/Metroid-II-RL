@@ -106,7 +106,7 @@ class MetroidEnv(gym.Env):
             # being pretty effecient, spawn to "shaft" area is 90ish exploration coords
             reset_exploration_count=0, # reset the exploration cache after this many explored coordinates
 
-            invincibility=True,
+            invincibility=False,
             progress_checkpoints=False,
 
             # Pufferlib options
@@ -376,7 +376,7 @@ class MetroidEnv(gym.Env):
         # TODO could convert this to a dictionary at some point?
         missileWeight = -0.01
 
-        # Losing health is pretty bad
+        # Losing health is pretty bad, but not that bad
         healthWeight = 0.1
 
         # AMAZING, so make it giant
@@ -453,7 +453,7 @@ class MetroidEnv(gym.Env):
         # Reward multiplier for hitting a new coordinate
         # reward = factor * len(explored)
         # May become oversaturated at some point...
-        exploration_reward = 0.005
+        exploration_reward = 0.05
 
         # Punish this much every step after threshold
         # Arbitrary, but very very small
