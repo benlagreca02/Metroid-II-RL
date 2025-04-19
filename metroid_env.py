@@ -107,7 +107,7 @@ class MetroidEnv(gym.Env):
             reset_exploration_count=0, # reset the exploration cache after this many explored coordinates
 
             invincibility=False,
-            progress_checkpoints=False,
+            progress_checkpoints=True,
 
             # Pufferlib options
             buf=None): 
