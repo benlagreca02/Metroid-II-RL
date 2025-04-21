@@ -66,7 +66,7 @@ observation_space = spaces.Dict({
 
 
 # How many frames to advance every action
-# 1 = every single frame
+# 1 = every single frame, a decision is made
 # Frame skipping
 DEFAULT_NUM_TO_TICK = 8
 
@@ -81,15 +81,38 @@ ROM_PATH = "MetroidII.gb"
 # class MetroidEnv(pufferlib.emulation.GymnasiumPufferEnv):
 class MetroidEnv(gym.Env):
     # I think this is about 2 hours of "real life playing"
-    # DEFAULT_EPISODE_LENGTH = 400000
+    # DEFAULT_EPISODE_LENGTH = 400_000
 
-    #  Was 75_000, should decrease eval time if shorter, which should increase
-    #  SPS (?), 
-    DEFAULT_EPISODE_LENGTH = 40_000
+    DEFAULT_EPISODE_LENGTH = 30_000
 
     # For doing checkpoint based training
-    CHECKPOINT_DIR = '../Metroid-II-RL/checkpoints/'
-    RANDOM_CHECKPOINT_SAVESTATES = '../Metroid-II-RL/random_checkpoints'
+    # CHECKPOINT_DIR = '../Metroid-II-RL/checkpoints/'
+    CHECKPOINT_DIR = './checkpoints/'
+
+    # ==== WEIGHTS ====
+    # need to incorporate weight
+    missileWeight = 0.025
+
+    # Health is pretty important
+    healthWeight = 0.1
+
+    # AMAZING, so make it giant, this will break things if this really works
+    # But I'll also see a giant spike
+    gmcWeight = 10
+
+    # Reward multiplier for hitting a new coordinate
+    # reward = factor * len(explored)
+    # May become oversaturated at some point...
+    exploration_reward = 0.05
+
+    # Give a decent reward when you hit a checkpoint
+    progress_increase_reward = 1
+
+    # NOT REALLY USED ANYMORE
+    # Punish this much every step after threshold
+    # Arbitrary, but very very small
+    lack_of_exploration_punishment = -0.25
+
 
     # emulation_speed_factor overrides the "debug" emulation speed
     def __init__(self,  
@@ -100,17 +123,17 @@ class MetroidEnv(gym.Env):
             render_mode='rgb_array',
             num_to_tick=DEFAULT_NUM_TO_TICK,
             # training params
-            random_state_load_freq = 0,
-            stale_truncate_limit=5000,  # End game after this many stale steps
+            stale_truncate_limit=3000,  # End game after this many stale steps
             lack_of_exploration_threshold=0,  # Wait this many steps before we start punishment
-            # being pretty effecient, spawn to "shaft" area is 90ish exploration coords
             reset_exploration_count=0, # reset the exploration cache after this many explored coordinates
-
             invincibility=False,
+
             progress_checkpoints=True,
+            progress_rewards=False,
 
             # Pufferlib options
             buf=None): 
+
 
         # self.metadata = {'render_modes': ['human', 'rgb_array', 'tiles']}
         self.metadata = {'render_modes': ['human', 'rgb_array']}
@@ -154,14 +177,6 @@ class MetroidEnv(gym.Env):
         self.reset_exploration_count = reset_exploration_count
         self.lack_of_exploration_threshold = lack_of_exploration_threshold
 
-        self.random_state_load_freq = random_state_load_freq
-
-        # For random point env starting
-        if not os.path.exists(self.RANDOM_CHECKPOINT_SAVESTATES):
-            raise ModuleNotFoundError("Couldn't find random checkpoints folder!")
-        self.state_files = [os.path.join(self.RANDOM_CHECKPOINT_SAVESTATES,
-                                         name) for name in os.listdir(self.RANDOM_CHECKPOINT_SAVESTATES)]
-
 
         # flags for keeping track of progress
         # increments as we make progress through the game
@@ -170,8 +185,10 @@ class MetroidEnv(gym.Env):
         # 3: made it to the corner of doom
         # By setting to -1, checks never happen
         self.progress = 0 if progress_checkpoints else -1
-        
 
+        # RESET ENV to load 0th checkpoint, with the left portion of the map
+        # "greyed out" in the exploration buffer
+        self.reset
 
     def _get_screen_obs(self): 
         # -8 is to remove the "bar" from the bottom of the screen
@@ -346,23 +363,31 @@ class MetroidEnv(gym.Env):
 
         # update progress (very rough)
         (ax, ay), (px, py) = self.getAllCoordData()
-        # TODO could make this a lot cleaner, and just better overall
-        # Specifically, the bounds checking
-        if self.progress == 0:
-            # check if we're in the cave entrance
-            if ax == 4 and ay == 4 and 27 <= px <= 60 and 90 <= py <= 132:
-                print("Hit checkpoint 1!")
-                self.progress += 1
-        elif self.progress == 1:
-            # check if we made it past the enemies
-            if ax == 7 and ay == 4 and 0 <= px <= 100 and 142 <= py <= 212:
-                self.progress += 1
-                print("Hit checkpoint 2!")
-        elif self.progress == 2:
-            # check if we made it down the shaft 
-            if ax == 10 and ay == 6 and 77 <= px <= 163 and 10 <= py <= 84:
-                self.progress += 1
-                print("Hit checkpoint 3!")
+
+        # axe: area x equal (equal, to differentiate from ax)
+        # aye: area y equal
+        # pxl: Pixel X low
+        # pxh: Pixel X high
+        # pyl: Pixel Y low
+        # pyh: Pixel Y high
+        BOXES = [
+                # ax, ay, pxl, pxh, pyl, pyh
+                (10, 6, 77, 163, 10, 84),  # 1_shaft, the first shaft
+                (12, 6, 53, 180, 60, 132), # 2_shaft2, the second downshaft
+                (3, 0, 95, 155, 10, 40),   # 3_fork, after the third shaft
+                (1, 5, 170, 231, 55, 135), # 4_left, before big "s" downwards
+                (5, 1, 180, 220, 90, 135), # 5_left2, almost to boss
+                (1, 1, 180, 245, 90, 135), # 6_metroid
+            ]
+
+        # based on current progress, check if we are in the NEXT "box" 
+        axe, aye, pxl, pxh, pyl, pyh = BOXES[self.progress]
+
+        if ax == axe and ay == aye and pxl < px < pxh and pyl <= py <= pyh:
+            self.progress += 1
+            print("Hit checkpoint {self.progress}!")
+
+        
 
         return obs, reward, done, truncated, info
 
@@ -373,14 +398,6 @@ class MetroidEnv(gym.Env):
         Calculates the reward based on the current state of the emulator.
         Includes the calculation of exploration reward 
         '''
-        # TODO could convert this to a dictionary at some point?
-        missileWeight = -0.01
-
-        # Losing health is pretty bad, but not that bad
-        healthWeight = 0.1
-
-        # AMAZING, so make it giant
-        gmcWeight = 10
 
         mem_state = self._get_mem_state_dict()
         # calculate "deltas" of memory values
@@ -400,20 +417,19 @@ class MetroidEnv(gym.Env):
         # missingHealth = (99 - mem_state['hp'])
         # reward -= healthWeight * missingHealth
 
-
         # small punishment for every missle shot, and reward missiles gained 
         # Could change to give bigger reward for gained? i.e. -0.05 when
         # shooting
-        reward += missileWeight * deltas['missiles']
+        reward += self.missileWeight * deltas['missiles']
 
         # health lost is bad
         # Could do something where losing your first few health isn't bad,
         # but losing your last bits of health is worse (?) Could incentivise
         # defensive behaivor with low health
-        reward += healthWeight * deltas['hp']
+        reward += self.healthWeight * deltas['hp']
 
         # Good to shrink this, so its negative
-        reward += gmcWeight * -deltas['gmc']
+        reward += self.gmcWeight * -deltas['gmc']
 
         # NO CHANCE the agent gets this far yet, so I'll implement these later.
         # TODO implement upgrade award.
@@ -450,14 +466,6 @@ class MetroidEnv(gym.Env):
 
     def _calc_and_update_exploration(self):
 
-        # Reward multiplier for hitting a new coordinate
-        # reward = factor * len(explored)
-        # May become oversaturated at some point...
-        exploration_reward = 0.05
-
-        # Punish this much every step after threshold
-        # Arbitrary, but very very small
-        lack_of_exploration_punishment = -0.25
 
 
         # Pixel value is 8 bit (0-255)
@@ -470,8 +478,8 @@ class MetroidEnv(gym.Env):
         # you will get bursts of rewards (0, 100, 200). When 255 rolls over to
         # 0, the reward is given over a delta of 55 pixels if that makes sense?
         # really should be 1,2,4,8,16,32,64, or 128
-        pixel_exploration_skip_x = 32
-        pixel_exploration_skip_y = 16
+        pixel_exploration_skip_x = 64
+        pixel_exploration_skip_y = 64
 
         pixX, pixY = self.getCoordinatesPixels()
 
@@ -485,7 +493,7 @@ class MetroidEnv(gym.Env):
         if coordData not in self.explored:
             self.explored.add(coordData)
             self.stale_exploration_count = 0
-            return exploration_reward
+            return self.exploration_reward
         
         self.stale_exploration_count += 1 
         if self.lack_of_exploration_threshold == 0:
@@ -493,32 +501,34 @@ class MetroidEnv(gym.Env):
         else:
             should_punish = self.stale_exploration_count > self.lack_of_exploration_threshold 
 
-        return lack_of_exploration_punishment if should_punish else 0
+        return self.lack_of_exploration_punishment if should_punish else 0
 
 
     def reset(self, **kwargs):
         self.pyboy.game_wrapper.reset_game()
 
-        # OCCASIONALLY LOAD OTHER START POINTS
-        random_num = random.random()
-        if(random_num < self.random_state_load_freq):
-            raise NotImplemented("Need to fix this function to load better"
-            " checkpoints with the explore buffer fixed! you hecking goober")
-
         info = {}
         self.explored = set()
         self._calc_and_update_exploration()
 
-        if self.progress == 1:
-            # load the cave checkpoint
-            self.load_checkpoint(self.CHECKPOINT_DIR + "1_caveEntrance")
-        if self.progress == 2:
-            # load the cave checkpoint
-            self.load_checkpoint(self.CHECKPOINT_DIR + "2_afterEnemies")
-        if self.progress == 3:
-            # load the cave checkpoint
-            self.load_checkpoint(self.CHECKPOINT_DIR + "3_shaft")
-
+        # TODO clean to not use so many magic constants
+        if self.progress <= 0:
+            # Even if we aren't doing checkpointing, start from here.
+            # All it is, is a filled in exploration set so left by ship is
+            # worthless
+            self.load_checkpoint(self.CHECKPOINT_DIR + "0_start")
+        elif self.progress == 1:
+            self.load_checkpoint(self.CHECKPOINT_DIR + "1_shaft")
+        elif self.progress == 2:
+            self.load_checkpoint(self.CHECKPOINT_DIR + "2_shaft2")
+        elif self.progress == 3:
+            self.load_checkpoint(self.CHECKPOINT_DIR + "3_fork")
+        elif self.progress == 4:
+            self.load_checkpoint(self.CHECKPOINT_DIR + "4_left")
+        elif self.progress == 5:
+            self.load_checkpoint(self.CHECKPOINT_DIR + "5_left2")
+        elif self.progress == 6:
+            self.load_checkpoint(self.CHECKPOINT_DIR + "6_metroid")
 
         return self._get_obs(), info
 
