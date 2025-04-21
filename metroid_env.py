@@ -19,7 +19,9 @@ from actions_lists import *
 import os
 import random
 
+# for saving the set of exploration data
 import pickle
+
 
 # whole screen black and white observation space example
 # observation_space = spaces.Box(low=0, high=254, shape=(144,160, 1), dtype=np.int8)
@@ -52,7 +54,6 @@ MAJOR_UPGRADES_OBS = "major_upgrades"
 #        8: Missile
 BEAM_OBS = "beam"
 
-# TODO FIX HACK just to get it working with puffer
 
 observation_space = spaces.Dict({
     SCREEN_OBS: quarter_res_screen_obs_space,
@@ -128,7 +129,7 @@ class MetroidEnv(gym.Env):
             reset_exploration_count=0, # reset the exploration cache after this many explored coordinates
             invincibility=False,
 
-            progress_checkpoints=True,
+            progress_checkpoints=False,
             progress_rewards=False,
 
             # Pufferlib options
@@ -188,7 +189,7 @@ class MetroidEnv(gym.Env):
 
         # RESET ENV to load 0th checkpoint, with the left portion of the map
         # "greyed out" in the exploration buffer
-        self.reset
+        self.reset()
 
     def _get_screen_obs(self): 
         # -8 is to remove the "bar" from the bottom of the screen
