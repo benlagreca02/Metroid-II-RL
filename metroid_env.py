@@ -87,8 +87,8 @@ class MetroidEnv(gym.Env):
     DEFAULT_EPISODE_LENGTH = 30_000
 
     # For doing checkpoint based training
-    # CHECKPOINT_DIR = '../Metroid-II-RL/checkpoints/'
-    CHECKPOINT_DIR = './checkpoints/'
+    CHECKPOINT_DIR = '../Metroid-II-RL/checkpoints/'
+    # CHECKPOINT_DIR = './checkpoints/'
 
     # ==== WEIGHTS ====
     # need to incorporate weight
