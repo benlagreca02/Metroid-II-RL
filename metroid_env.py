@@ -186,6 +186,7 @@ class MetroidEnv(gym.Env):
         # 3: made it to the corner of doom
         # By setting to -1, checks never happen
         self.progress = 0 if progress_checkpoints else -1
+        self.progress_rewards = progress_rewards
 
         # RESET ENV to load 0th checkpoint, with the left portion of the map
         # "greyed out" in the exploration buffer
@@ -386,6 +387,8 @@ class MetroidEnv(gym.Env):
 
         if ax == axe and ay == aye and pxl < px < pxh and pyl <= py <= pyh:
             self.progress += 1
+            if self.progress_reward:
+                reward += self.progress_increase_reward
             print("Hit checkpoint {self.progress}!")
 
         
