@@ -129,7 +129,7 @@ class MetroidEnv(gym.Env):
             reset_exploration_count=0, # reset the exploration cache after this many explored coordinates
             invincibility=False,
 
-            progress_checkpoints=False,
+            progress_checkpoints=True,
             progress_rewards=False,
 
             # Pufferlib options
@@ -387,7 +387,7 @@ class MetroidEnv(gym.Env):
 
         if ax == axe and ay == aye and pxl < px < pxh and pyl <= py <= pyh:
             self.progress += 1
-            if self.progress_reward:
+            if self.progress_rewards:
                 reward += self.progress_increase_reward
             print("Hit checkpoint {self.progress}!")
 
